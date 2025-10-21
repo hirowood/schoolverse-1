@@ -1,0 +1,43 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-schoolverse}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file:
+      - ../.env.docker.dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+
+  rt:
+    image: node:20-alpine
+    working_dir: /app
+    environment:
+      - RT_PORT=3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ..:/app
+    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps && node server/index.js"
+
+volumes:
+  db_data:
