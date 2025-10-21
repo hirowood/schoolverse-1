@@ -34,7 +34,7 @@ export default function LoginPage() {
       }
       setAuth(data.token, data.user);
       router.push('/classroom');
-    } catch (err) {
+    } catch {
       setError('ネットワークエラーが発生しました');
     } finally {
       setLoading(false);

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import useKeyboard from '@/hooks/useKeyboard';
 import { useAuthStore } from '@/store/authStore';
+import { getSocket } from '@/lib/socket/socketClient';
 
 // Viewport (canvas) size
 const VIEW_W = 800;
@@ -21,6 +22,8 @@ export default function VirtualSpace() {
   const keys = useKeyboard();
   const { user } = useAuthStore();
   const [pos, setPos] = useState({ x: MAP_W / 2, y: MAP_H / 2 }); // spawn center
+  const peersRef = useRef<Map<string, { x: number; y: number; displayName?: string }>>(new Map());
+  const lastSentRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,6 +57,14 @@ export default function VirtualSpace() {
       // Compute camera (top-left world coord shown)
       const camX = Math.max(0, Math.min(MAP_W - VIEW_W, pos.x - VIEW_W / 2));
       const camY = Math.max(0, Math.min(MAP_H - VIEW_H, pos.y - VIEW_H / 2));
+
+      // Throttle position emits (~20Hz)
+      if (user?.id) {
+        if (now - lastSentRef.current > 50) {
+          lastSentRef.current = now;
+          getSocket().emit('space:position:update', { x: pos.x, y: pos.y });
+        }
+      }
 
       // Render scene
       ctx.clearRect(0, 0, VIEW_W, VIEW_H);
@@ -91,7 +102,7 @@ export default function VirtualSpace() {
       // right
       drawWorldRect(ctx, camX, camY, MAP_W - TILE, 0, TILE, MAP_H);
 
-      // Avatar
+      // Self avatar
       const screenX = pos.x - camX;
       const screenY = pos.y - camY;
       ctx.fillStyle = '#2563eb';
@@ -107,6 +118,24 @@ export default function VirtualSpace() {
         ctx.fillText(user.displayName, screenX, screenY - AVATAR_R - 8);
       }
 
+      // Peers
+      peersRef.current.forEach((p) => {
+        // draw only if in view
+        const px = p.x - camX;
+        const py = p.y - camY;
+        if (px < -AVATAR_R || py < -AVATAR_R || px > VIEW_W + AVATAR_R || py > VIEW_H + AVATAR_R) return;
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(px, py, AVATAR_R, 0, Math.PI * 2);
+        ctx.fill();
+        if (p.displayName) {
+          ctx.fillStyle = '#065f46';
+          ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(p.displayName, px, py - AVATAR_R - 8);
+        }
+      });
+
       raf = requestAnimationFrame(loop);
     };
 
@@ -117,6 +146,45 @@ export default function VirtualSpace() {
     });
     return () => cancelAnimationFrame(raf);
   }, [keys, pos.x, pos.y, user?.displayName]);
+
+  // Socket presence wiring
+  useEffect(() => {
+    const socket = getSocket();
+    if (user?.id) {
+      socket.emit('presence:join', { userId: user.id, displayName: user.displayName });
+    }
+
+    const onState = (players: Array<{ userId: string; x: number; y: number; displayName?: string }>) => {
+      const m = new Map<string, { x: number; y: number; displayName?: string }>();
+      players.forEach((p) => {
+        if (p.userId !== user?.id) m.set(p.userId, { x: p.x, y: p.y, displayName: p.displayName });
+      });
+      peersRef.current = m;
+    };
+    const onJoined = (p: { userId: string; x: number; y: number; displayName?: string }) => {
+      if (p.userId === user?.id) return;
+      peersRef.current.set(p.userId, { x: p.x, y: p.y, displayName: p.displayName });
+    };
+    const onLeft = (p: { userId: string }) => {
+      peersRef.current.delete(p.userId);
+    };
+    const onPos = (p: { userId: string; x: number; y: number }) => {
+      const cur = peersRef.current.get(p.userId);
+      if (!cur) return;
+      cur.x = p.x; cur.y = p.y;
+    };
+
+    socket.on('presence:state', onState);
+    socket.on('presence:joined', onJoined);
+    socket.on('presence:left', onLeft);
+    socket.on('space:position:update', onPos);
+    return () => {
+      socket.off('presence:state', onState);
+      socket.off('presence:joined', onJoined);
+      socket.off('presence:left', onLeft);
+      socket.off('space:position:update', onPos);
+    };
+  }, [user?.id, user?.displayName]);
 
   return <canvas ref={canvasRef} width={VIEW_W} height={VIEW_H} className="w-full h-auto" />;
 }

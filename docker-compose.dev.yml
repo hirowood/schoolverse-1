@@ -42,6 +42,18 @@ services:
       - redis
     command: npm run dev
 
+  rt:
+    image: node:20-alpine
+    container_name: schoolverse_rt_dev
+    working_dir: /app
+    environment:
+      - RT_PORT=3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps && node server/index.js"
+
 volumes:
   db_data_dev:
   redis_data_dev:

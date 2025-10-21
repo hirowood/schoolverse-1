@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ user: toSafeUser(user) }, { status: 201 });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

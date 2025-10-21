@@ -29,7 +29,7 @@
 ```
 prisma/
   schema.prisma
-src/
+src/                       # フロントエンド（Next.js）
   app/
     (auth)/{login,register}/page.tsx
     (virtual-space)/classroom/page.tsx
@@ -48,6 +48,8 @@ src/
     userStore.ts chatStore.ts spaceStore.ts
   types/
     user.ts message.ts room.ts events.ts
+server/                    # バックエンド（Realtime/Socket.io）
+  index.js
 ```
 
 ## Docker
@@ -60,6 +62,10 @@ src/
 - 環境変数:
   - 開発: `.env.local`（ホスト） / `.env.docker.dev`（コンテナ）
   - 本番: `.env.production.example`（テンプレート） / `.env.docker.prod`（コンテナ）
+
+### Realtime（Socket.io）開発
+- 単体起動: `npm run rt:dev`（server/index.js を起動）
+- Dockerで起動: `docker compose -f docker-compose.dev.yml up rt`
 
 ## 参考
 - 要求定義書の「次のアクション」を満たす初期土台を作成済み。今後、Socket.io サーバーや WebRTC、Canvas 機能を段階的に拡張してください。

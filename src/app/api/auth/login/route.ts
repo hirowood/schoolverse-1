@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       token,
       user: { id: user.id, email: user.email, displayName: user.displayName },
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

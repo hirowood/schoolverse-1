@@ -2,6 +2,9 @@
   "name": "schoolverse_1",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/backend"
+  ],
   "engines": {
     "node": "20.x"
   },
@@ -18,12 +21,14 @@
     "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
     "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
     "docker:prod": "docker compose -f docker-compose.prod.yml up --build -d",
-    "docker:prod:down": "docker compose -f docker-compose.prod.yml down"
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "rt:dev": "npm run dev -w apps/backend",
+    "rt:start": "npm run start -w apps/backend"
   },
   "dependencies": {
     "next": "15.0.0",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "@prisma/client": "^5.19.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
@@ -36,11 +41,11 @@
   "devDependencies": {
     "typescript": "^5.6.3",
     "@types/node": "^20.11.30",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "eslint": "^9.38.0",
     "@eslint/js": "^9.13.0",
-    "typescript-eslint": "^7.18.0",
+    "typescript-eslint": "^8.46.2",
     "@next/eslint-plugin-next": "15.0.0",
     "eslint-config-next": "15.0.0",
     "prettier": "^3.3.3",

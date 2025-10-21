@@ -2,7 +2,5 @@
 @tailwind components;
 @tailwind utilities;
 
-/* App-level tweaks */
-:root {
-  color-scheme: light;
-}
+:root { color-scheme: light; }
+
