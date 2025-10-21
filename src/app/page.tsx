@@ -9,9 +9,9 @@ export default function HomePage() {
       </section>
 
       <div className="flex gap-3">
-        <a className="rounded bg-blue-600 px-4 py-2 text-white" href="/(auth)/login">ログイン</a>
-        <a className="rounded bg-gray-200 px-4 py-2" href="/(auth)/register">新規登録</a>
-        <a className="rounded bg-emerald-600 px-4 py-2 text-white" href="/(virtual-space)/classroom">教室へ</a>
+        <a className="rounded bg-blue-600 px-4 py-2 text-white" href="/login">ログイン</a>
+        <a className="rounded bg-gray-200 px-4 py-2" href="/register">新規登録</a>
+        <a className="rounded bg-emerald-600 px-4 py-2 text-white" href="/classroom">教室へ</a>
       </div>
     </div>
   );

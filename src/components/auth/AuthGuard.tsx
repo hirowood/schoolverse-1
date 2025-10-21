@@ -15,10 +15,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (token === null) {
       const t = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      if (!t) router.replace('/(auth)/login');
+      if (!t) router.replace('/login');
     }
   }, [token, router]);
 
   return <>{children}</>;
 }
-

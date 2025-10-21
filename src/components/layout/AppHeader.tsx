@@ -17,7 +17,7 @@ export default function AppHeader() {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {}
     logout();
-    router.push('/(auth)/login');
+    router.push('/login');
   };
 
   return (
@@ -26,7 +26,7 @@ export default function AppHeader() {
         <h1 className="font-semibold"><Link href="/">Schoolverse_1</Link></h1>
         <nav className="text-sm space-x-4 flex items-center">
           <Link className="hover:underline" href="/">Home</Link>
-          <Link className="hover:underline" href="/(virtual-space)/classroom">Classroom</Link>
+          <Link className="hover:underline" href="/classroom">Classroom</Link>
           {token ? (
             <>
               <span className="text-gray-600 hidden sm:inline">{user?.displayName}</span>
@@ -34,8 +34,8 @@ export default function AppHeader() {
             </>
           ) : (
             <>
-              <Link className="rounded bg-blue-600 px-3 py-1 text-white" href="/(auth)/login">ログイン</Link>
-              <Link className="rounded bg-gray-200 px-3 py-1" href="/(auth)/register">登録</Link>
+              <Link className="rounded bg-blue-600 px-3 py-1 text-white" href="/login">ログイン</Link>
+              <Link className="rounded bg-gray-200 px-3 py-1" href="/register">登録</Link>
             </>
           )}
         </nav>
@@ -43,4 +43,3 @@ export default function AppHeader() {
     </header>
   );
 }
-

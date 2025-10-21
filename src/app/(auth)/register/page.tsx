@@ -52,7 +52,7 @@ export default function RegisterPage() {
         return;
       }
       setAuth(loginData.token, loginData.user);
-      router.push('/(virtual-space)/classroom');
+      router.push('/classroom');
     } catch {
       setError('ネットワークエラーが発生しました');
     } finally {

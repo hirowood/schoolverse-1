@@ -33,7 +33,7 @@ export default function LoginPage() {
         return;
       }
       setAuth(data.token, data.user);
-      router.push('/(virtual-space)/classroom');
+      router.push('/classroom');
     } catch (err) {
       setError('ネットワークエラーが発生しました');
     } finally {
