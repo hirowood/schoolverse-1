@@ -1,7 +1,6 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { z } from 'zod';
 import { loginSchema } from '@/lib/utils/validators';
 import { useAuthStore } from '@/store/authStore';
 
