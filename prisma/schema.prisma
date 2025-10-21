@@ -1,0 +1,117 @@
+// Prisma schema for Schoolverse_1
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  passwordHash  String
+  displayName   String
+  avatarConfig  Json
+  status        UserStatus  @default(OFFLINE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  messages      Message[]
+  roomMembers   RoomMember[]
+  sentCalls     VoiceCall[] @relation("caller")
+  receivedCalls VoiceCall[] @relation("callee")
+
+  @@index([email])
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
+}
+
+model Room {
+  id        String    @id @default(uuid())
+  name      String
+  type      RoomType
+  maxUsers  Int       @default(50)
+  mapData   Json
+  createdAt DateTime  @default(now())
+
+  members   RoomMember[]
+  messages  Message[]
+
+  @@index([type])
+}
+
+enum RoomType {
+  CLASSROOM
+  GALLERY
+  PARK
+  CUSTOM
+}
+
+model RoomMember {
+  id        String   @id @default(uuid())
+  userId    String
+  roomId    String
+  positionX Float    @default(0)
+  positionY Float    @default(0)
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+model Message {
+  id          String       @id @default(uuid())
+  content     String
+  type        MessageType  @default(TEXT)
+  senderId    String
+  roomId      String
+  isPrivate   Boolean      @default(false)
+  recipientId String?
+  createdAt   DateTime     @default(now())
+
+  sender      User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room        Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([senderId])
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  NOTIFICATION
+}
+
+model VoiceCall {
+  id        String     @id @default(uuid())
+  callerId  String
+  calleeId  String
+  status    CallStatus @default(INITIATED)
+  startedAt DateTime   @default(now())
+  endedAt   DateTime?
+
+  caller    User       @relation("caller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee    User       @relation("callee", fields: [calleeId], references: [id], onDelete: Cascade)
+
+  @@index([callerId])
+  @@index([calleeId])
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  ACTIVE
+  ENDED
+  REJECTED
+}

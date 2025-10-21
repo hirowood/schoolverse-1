@@ -1,0 +1,46 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15
+    container_name: schoolverse_db_prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-schoolverse}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: schoolverse_redis_prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: schoolverse_app_prod
+    env_file:
+      - .env.docker.prod
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  db_data_prod:
+  redis_data_prod:
