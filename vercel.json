@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "installCommand": "npm install --no-audit --no-fund --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "functions": {
+    "api/**": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

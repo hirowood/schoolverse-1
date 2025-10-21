@@ -1,23 +1,26 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type JwtPayload as JWTPayload, type Secret, type SignOptions } from 'jsonwebtoken';
 
-const DEFAULT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
-const SECRET = process.env.JWT_SECRET || 'change_me';
+const SECRET: Secret = (process.env.JWT_SECRET as Secret) || 'change_me';
+const DEFAULT_EXPIRES_IN: SignOptions['expiresIn'] = (process.env.JWT_EXPIRES_IN as unknown as SignOptions['expiresIn']) || '1d';
 
-export type JwtPayload = {
-  sub: string; // user id
+export type AuthTokenPayload = (JWTPayload & {
+  sub: string;
   email?: string;
   displayName?: string;
-  iat?: number;
-  exp?: number;
-};
+});
 
-export function signToken(payload: Omit<JwtPayload, 'iat' | 'exp'>, opts?: { expiresIn?: string | number }) {
-  return jwt.sign(payload, SECRET, { expiresIn: opts?.expiresIn ?? DEFAULT_EXPIRES_IN });
+export function signToken(
+  payload: Omit<AuthTokenPayload, 'iat' | 'exp'>,
+  opts?: { expiresIn?: SignOptions['expiresIn'] },
+) {
+  const options: SignOptions = {};
+  options.expiresIn = opts?.expiresIn ?? DEFAULT_EXPIRES_IN;
+  return jwt.sign(payload as object, SECRET, options);
 }
 
-export function verifyToken(token: string): JwtPayload | null {
+export function verifyToken(token: string): AuthTokenPayload | null {
   try {
-    return jwt.verify(token, SECRET) as JwtPayload;
+    return jwt.verify(token, SECRET) as AuthTokenPayload;
   } catch {
     return null;
   }

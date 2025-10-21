@@ -1,14 +1,19 @@
 "use client";
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { loginSchema } from '@/lib/utils/validators';
+import { useAuthStore } from '@/store/authStore';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { setAuth } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
@@ -16,8 +21,25 @@ export default function LoginPage() {
       return;
     }
     setError(null);
-    // TODO: 認証 API 呼び出し
-    alert('ログイン（ダミー）');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || 'ログインに失敗しました');
+        return;
+      }
+      setAuth(data.token, data.user);
+      router.push('/(virtual-space)/classroom');
+    } catch (err) {
+      setError('ネットワークエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,7 +55,9 @@ export default function LoginPage() {
           <input className="mt-1 w-full rounded border p-2" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" className="w-full rounded bg-blue-600 px-4 py-2 text-white">ログイン</button>
+        <button disabled={loading} type="submit" className="w-full rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
+          {loading ? '処理中…' : 'ログイン'}
+        </button>
       </form>
     </div>
   );
