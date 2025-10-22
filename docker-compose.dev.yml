@@ -52,7 +52,7 @@ services:
       - "3001:3001"
     volumes:
       - .:/app
-    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps && node server/index.js"
+    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps && npx tsx server/index.ts"
 
 volumes:
   db_data_dev:

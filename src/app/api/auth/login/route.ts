@@ -1,43 +1,36 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/db/prisma';
-import { comparePassword } from '@/lib/auth/password';
-import { signToken } from '@/lib/auth/jwt';
+import { authService } from '@/services/authService';
+import { setAuthCookies } from '@/lib/auth/cookies';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const parsed = loginSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 });
+  }
+
   try {
-    const body = await request.json();
-    const parsed = loginSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    const { accessToken, refreshToken, user } = await authService.login(parsed.data);
+    const response = NextResponse.json(
+      { user },
+      {
+        status: 200,
+      },
+    );
+
+    setAuthCookies(response, { accessToken, refreshToken });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.message === 'INVALID_CREDENTIALS') {
+      return NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 });
     }
-    const { email, password } = parsed.data;
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, email: true, displayName: true, passwordHash: true },
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-    }
-
-    const ok = await comparePassword(password, user.passwordHash);
-    if (!ok) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-    }
-
-    const token = signToken({ sub: user.id, email: user.email, displayName: user.displayName });
-
-    return NextResponse.json({
-      token,
-      user: { id: user.id, email: user.email, displayName: user.displayName },
-    });
-  } catch {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error('[auth/login] unexpected error', error);
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }

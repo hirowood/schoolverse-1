@@ -1,17 +1,17 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { getTokenFromAuthHeader, verifyToken } from '@/lib/auth/jwt';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/middleware';
+import { authService } from '@/services/authService';
 
-export async function GET(request: Request) {
-  const token = getTokenFromAuthHeader(request.headers.get('authorization'));
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const payload = verifyToken(token);
-  if (!payload?.sub) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest) {
+  const result = requireAuth(request);
+  if ('error' in result) {
+    return NextResponse.json({ error: result.error }, { status: 401 });
+  }
 
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: { id: true, email: true, displayName: true },
-  });
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await authService.getSafeUser(result.userId);
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   return NextResponse.json({ user });
 }

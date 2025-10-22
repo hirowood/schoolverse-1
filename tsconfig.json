@@ -24,6 +24,15 @@
       "@/lib/*": [
         "src/lib/*"
       ],
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/repositories": [
+        "src/repositories/index"
+      ],
+      "@/repositories/*": [
+        "src/repositories/*"
+      ],
       "@/store/*": [
         "src/store/*"
       ],
@@ -45,6 +54,7 @@
     "next-env.d.ts",
     "next.config.ts",
     "src/**/*",
+    "server/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [

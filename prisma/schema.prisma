@@ -11,10 +11,13 @@ datasource db {
 model User {
   id            String      @id @default(uuid())
   email         String      @unique
+  username      String      @unique
   passwordHash  String
-  displayName   String
-  avatarConfig  Json
+  displayName   String?
+  avatarUrl     String?
+  avatarConfig  Json?
   status        UserStatus  @default(OFFLINE)
+  lastLoginAt   DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -22,8 +25,10 @@ model User {
   roomMembers   RoomMember[]
   sentCalls     VoiceCall[] @relation("caller")
   receivedCalls VoiceCall[] @relation("callee")
+  sessions      Session[]
 
   @@index([email])
+  @@index([status])
 }
 
 enum UserStatus {
@@ -85,6 +90,21 @@ model Message {
 
   @@index([roomId, createdAt])
   @@index([senderId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique
+  accessToken  String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
 }
 
 enum MessageType {

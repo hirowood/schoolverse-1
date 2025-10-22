@@ -1,37 +1,42 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/db/prisma';
-import { hashPassword } from '@/lib/auth/password';
-import { toSafeUser } from '@/lib/auth/safeUser';
+import { authService } from '@/services/authService';
+import { setAuthCookies } from '@/lib/auth/cookies';
 
 const registerSchema = z.object({
   email: z.string().email(),
+  username: z
+    .string()
+    .min(3)
+    .max(20)
+    .regex(/^[a-zA-Z0-9_]+$/, 'USERNAME_INVALID'),
   password: z.string().min(8),
-  displayName: z.string().min(1).max(50),
+  displayName: z.string().min(1).max(50).optional(),
+  avatarUrl: z.string().url().optional(),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const parsed = registerSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'INVALID_INPUT', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
   try {
-    const body = await request.json();
-    const parsed = registerSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    const { accessToken, refreshToken, user } = await authService.signup(parsed.data);
+    const response = NextResponse.json({ user }, { status: 201 });
+    setAuthCookies(response, { accessToken, refreshToken });
+    return response;
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'EMAIL_EXISTS') {
+        return NextResponse.json({ error: 'EMAIL_EXISTS' }, { status: 409 });
+      }
+      if (error.message === 'USERNAME_EXISTS') {
+        return NextResponse.json({ error: 'USERNAME_EXISTS' }, { status: 409 });
+      }
     }
-    const { email, password, displayName } = parsed.data;
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
-    }
-
-    const passwordHash = await hashPassword(password);
-    const user = await prisma.user.create({
-      data: { email, passwordHash, displayName, avatarConfig: {}, status: 'OFFLINE' },
-      select: { id: true, email: true, displayName: true },
-    });
-
-    return NextResponse.json({ user: toSafeUser(user) }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error('[auth/register] unexpected error', error);
+    return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }

@@ -2,8 +2,9 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 
-export function useAuthRestore() {
-  const { restore } = useAuthStore();
-  useEffect(() => { restore(); }, [restore]);
+export function useAuthBootstrap() {
+  const fetchMe = useAuthStore((state) => state.fetchMe);
+  useEffect(() => {
+    fetchMe().catch(() => undefined);
+  }, [fetchMe]);
 }
-

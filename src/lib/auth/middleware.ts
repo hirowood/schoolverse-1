@@ -1,13 +1,16 @@
-import { NextResponse } from 'next/server';
-import { getTokenFromAuthHeader, verifyToken } from './jwt';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAccessToken } from './cookies';
+import { getTokenFromAuthHeader, verifyAccessToken } from './jwt';
 
 export type AuthResult = { userId: string } | { error: string };
 
-export function requireAuth(request: Request): AuthResult {
-  const token = getTokenFromAuthHeader(request.headers.get('authorization'));
-  if (!token) return { error: 'Missing Authorization header' };
-  const payload = verifyToken(token);
-  if (!payload?.sub) return { error: 'Invalid or expired token' };
+export function requireAuth(request: NextRequest): AuthResult {
+  const bearer = getTokenFromAuthHeader(request.headers.get('authorization'));
+  const cookieToken = getAccessToken(request);
+  const token = bearer ?? cookieToken;
+  if (!token) return { error: 'Unauthorized' };
+  const payload = verifyAccessToken(token);
+  if (!payload?.sub) return { error: 'Unauthorized' };
   return { userId: payload.sub };
 }
 
