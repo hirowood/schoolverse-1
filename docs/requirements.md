@@ -3585,7 +3585,8 @@ export function logDebug(message: string, data?: any): void {
   - [x] Prisma Notebook/NotebookPage モデル追加
   - [x] ノート保存・共有 API (POST/PUT/GET)
   - [ ] Canvas ツールバー / fabric.js 連携 UI
-  - [ ] ノート保存のユニット・E2E テスト
+  - [x] ノート保存のユニットテスト
+  - [x] ノート保存 API の擬似E2Eテスト
 - [ ] OCR 文字認識 (Google Vision / tesseract)
   - [ ] Supabase Storage から OCR ジョブ投入
   - [ ] Google Vision / tesseract ラッパー実装
