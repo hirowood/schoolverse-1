@@ -3582,9 +3582,25 @@ export function logDebug(message: string, data?: any): void {
 
 ### Phase 1.5: 追加機能計画 (v2.1.0)
 - [ ] デジタルノート基盤 (fabric.js, 保存API)
+  - [ ] Prisma Notebook/NotebookPage モデル追加
+  - [ ] ノート保存・共有 API (POST/PUT/GET)
+  - [ ] Canvas ツールバー / fabric.js 連携 UI
+  - [ ] ノート保存のユニット・E2E テスト
 - [ ] OCR 文字認識 (Google Vision / tesseract)
+  - [ ] Supabase Storage から OCR ジョブ投入
+  - [ ] Google Vision / tesseract ラッパー実装
+  - [ ] 認識結果レビュー UI + テキスト整形
+  - [ ] OCR 結果キャッシュ・テスト整備
 - [ ] AI 要約・マインドマップ・学習アドバイス連携
+  - [ ] OpenAI API ラッパー整備 (要約/思考整理)
+  - [ ] マインドマップ生成ロジック (ノード/エッジ構築)
+  - [ ] 学習アドバイス推奨アルゴ追加
+  - [ ] レスポンス検証のユニットテスト
 - [ ] ノートサマリー / 学習インサイト ダッシュボード反映
+  - [ ] ノート統計 API (今週 / AI要約済み / 共有)
+  - [ ] 学習インサイト UI (キーワード・時間・スコア)
+  - [ ] Zustand ストア / キャッシュ戦略
+  - [ ] レポート生成テスト
 ### Phase 1: MVP (Week 1-8)
 
 **Week 1: 環境構築**
