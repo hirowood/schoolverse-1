@@ -4,8 +4,8 @@ import type { Prisma, Notebook, NotebookPage } from '@prisma/client';
 /**
  * NotebookRepository
  * ------------------
- * Encapsulates all database access related to notebooks・pages.
- * 他の層からは Prisma の細かな API を意識せずに利用できるようにします。
+ * ノートおよびページに関する DB アクセスを担当。
+ * Prisma の生の API をアプリの他層に漏らさないよう、このクラスで集約します。
  */
 export class NotebookRepository {
   async createNotebook(data: Prisma.NotebookCreateInput): Promise<Notebook> {
@@ -16,7 +16,7 @@ export class NotebookRepository {
     return prisma.notebook.update({ where: { id }, data });
   }
 
-  async findById(id: string): Promise<Notebook | null> {
+  async findById(id: string): Promise<(Notebook & { pages: NotebookPage[] }) | null> {
     return prisma.notebook.findUnique({ where: { id }, include: { pages: true } });
   }
 
@@ -30,10 +30,6 @@ export class NotebookRepository {
 
   async updatePage(id: string, data: Prisma.NotebookPageUpdateInput): Promise<NotebookPage> {
     return prisma.notebookPage.update({ where: { id }, data });
-  }
-
-  async listPages(notebookId: string): Promise<NotebookPage[]> {
-    return prisma.notebookPage.findMany({ where: { notebookId }, orderBy: { pageNumber: 'asc' } });
   }
 }
 

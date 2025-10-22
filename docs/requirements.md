@@ -3583,7 +3583,7 @@ export function logDebug(message: string, data?: any): void {
 ### Phase 1.5: 追加機能計画 (v2.1.0)
 - [ ] デジタルノート基盤 (fabric.js, 保存API)
   - [x] Prisma Notebook/NotebookPage モデル追加
-  - [ ] ノート保存・共有 API (POST/PUT/GET)
+  - [x] ノート保存・共有 API (POST/PUT/GET)
   - [ ] Canvas ツールバー / fabric.js 連携 UI
   - [ ] ノート保存のユニット・E2E テスト
 - [ ] OCR 文字認識 (Google Vision / tesseract)

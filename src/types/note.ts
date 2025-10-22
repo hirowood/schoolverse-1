@@ -1,12 +1,20 @@
 /**
- * ノート関連の共通型。
- * API Routes, Services, Frontend で共有するため、ここに集約する。
+ * ノート機能で共通利用する型定義。
+ * API Route / Service / フロントの三者が同じ構造を参照できるようにまとめています。
  */
 export type CreateNotebookInput = {
   ownerId: string;
   title: string;
   description?: string | null;
   tags?: string[];
+};
+
+export type UpdateNotebookInput = {
+  notebookId: string;
+  title?: string;
+  description?: string | null;
+  tags?: string[];
+  isShared?: boolean;
 };
 
 export type UpsertNotebookPageInput = {
