@@ -3575,11 +3575,16 @@ export function logDebug(message: string, data?: any): void {
 ## ✅ 実装チェックリスト
 
 ### Phase 0: 共通基盤 / テスト体制
-- [x] ドキュメント整備 (equirements.md, DETAILED_DESIGN.md, DOCKER_SETUP.md, README.md)
+- [x] ドキュメント整備 (`requirements.md`, `DETAILED_DESIGN.md`, `DOCKER_SETUP.md`, `README.md`)
 - [x] タイプチェック / Lint の自動化
-- [x] Vitest 導入 (
-pm run test:unit)
-- [ ] CI で lint/type-check/test を並行実行
+- [x] Vitest 導入 (`npm run test:unit`)
+- [ ] CI で `lint/type-check/test` を並行実行
+
+### Phase 1.5: 追加機能計画 (v2.1.0)
+- [ ] デジタルノート基盤 (fabric.js, 保存API)
+- [ ] OCR 文字認識 (Google Vision / tesseract)
+- [ ] AI 要約・マインドマップ・学習アドバイス連携
+- [ ] ノートサマリー / 学習インサイト ダッシュボード反映
 ### Phase 1: MVP (Week 1-8)
 
 **Week 1: 環境構築**
