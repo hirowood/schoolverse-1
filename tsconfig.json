@@ -55,7 +55,8 @@
     "next.config.ts",
     "src/**/*",
     "server/**/*.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules"
