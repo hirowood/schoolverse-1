@@ -26,6 +26,7 @@ model User {
   sentCalls     VoiceCall[] @relation("caller")
   receivedCalls VoiceCall[] @relation("callee")
   sessions      Session[]
+  notebooks     Notebook[]
 
   @@index([email])
   @@index([status])
@@ -134,4 +135,36 @@ enum CallStatus {
   ACTIVE
   ENDED
   REJECTED
+}
+
+model Notebook {
+  id          String         @id @default(uuid())
+  ownerId     String
+  title       String
+  description String?
+  tags        String[]       @default([])
+  isShared    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pages       NotebookPage[]
+
+  @@index([ownerId])
+  @@index([isShared])
+}
+
+model NotebookPage {
+  id         String   @id @default(uuid())
+  notebookId String
+  pageNumber Int
+  vectorJson Json?
+  pdfAssetId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  notebook Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+
+  @@unique([notebookId, pageNumber])
+  @@index([notebookId])
 }
