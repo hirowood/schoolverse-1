@@ -3574,6 +3574,12 @@ export function logDebug(message: string, data?: any): void {
 
 ## ✅ 実装チェックリスト
 
+### Phase 0: 共通基盤 / テスト体制
+- [x] ドキュメント整備 (equirements.md, DETAILED_DESIGN.md, DOCKER_SETUP.md, README.md)
+- [x] タイプチェック / Lint の自動化
+- [x] Vitest 導入 (
+pm run test:unit)
+- [ ] CI で lint/type-check/test を並行実行
 ### Phase 1: MVP (Week 1-8)
 
 **Week 1: 環境構築**
@@ -3596,7 +3602,7 @@ export function logDebug(message: string, data?: any): void {
 - [x] ログインフォーム実装
 - [x] サインアップフォーム実装
 - [x] 認証状態管理 (Zustand)
-- [ ] 認証テスト
+- [x] 認証テスト (Vitest)
 
 **Week 4-5: 仮想空間**
 - [ ] Canvas初期化
@@ -3607,7 +3613,7 @@ export function logDebug(message: string, data?: any): void {
 - [ ] 移動ロジック
 - [ ] 衝突検知
 - [ ] カメラ追従
-- [ ] Socket.ioサーバー設定
+- [x] Socket.ioサーバー設定
 - [ ] Socket.ioクライアント設定
 - [ ] 位置同期イベント
 - [ ] 複数ユーザー表示
