@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { fabric as FabricNamespace } from 'fabric';
+import type * as FabricNamespace from 'fabric';
 
 export type NotebookTool = 'select' | 'pen' | 'rectangle' | 'text' | 'eraser';
 
@@ -140,16 +140,23 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
         try {
           const module = await import('fabric');
           if (!isMounted) return;
-          const fabric = module.fabric;
-          fabricModuleRef.current = fabric;
-          const canvas = new fabric.Canvas(canvasElement, {
+          const moduleFabric = module as typeof FabricNamespace & {
+            fabric?: typeof FabricNamespace;
+            default?: typeof FabricNamespace;
+          };
+          const fabricModule = moduleFabric.fabric ?? moduleFabric.default;
+          if (!fabricModule) {
+            throw new Error('Failed to load Fabric.js');
+          }
+          fabricModuleRef.current = fabricModule;
+          const canvas = new fabricModule.Canvas(canvasElement, {
             selection: true,
             preserveObjectStacking: true,
           });
           fabricCanvasRef.current = canvas;
           isRestoringRef.current = true;
 
-          canvas.setBackgroundColor('#ffffff', () => undefined);
+          canvas.backgroundColor = '#ffffff';
           canvas.renderAll();
 
           applyCanvasSize();
@@ -168,8 +175,8 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           // Attach event listeners for history tracking
           const changeEvents = ['object:added', 'object:modified', 'object:removed'];
           const handleChanged = () => commitHistory();
-          changeEvents.forEach((event) => canvas.on(event, handleChanged));
-          canvas.on('path:created', handleChanged);
+          changeEvents.forEach((event) => canvas.on(event as any, handleChanged as any));
+          canvas.on('path:created' as any, handleChanged as any);
 
           // Apply pending load if any
           if (pendingLoadRef.current !== null) {
@@ -182,8 +189,8 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           setIsReady(true);
 
           return () => {
-            changeEvents.forEach((event) => canvas.off(event, handleChanged));
-            canvas.off('path:created', handleChanged);
+          changeEvents.forEach((event) => canvas.off(event as any, handleChanged as any));
+          canvas.off('path:created' as any, handleChanged as any);
           };
         } catch (error) {
           console.error('[NotebookCanvas] Failed to initialize fabric canvas', error);
@@ -228,7 +235,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
         } else if (event.key === 'Delete' || event.key === 'Backspace') {
           const canvas = fabricCanvasRef.current;
           if (!canvas) return;
-          const objects = canvas.getActiveObjects();
+          const objects = canvas.getActiveObjects() as FabricNamespace.Object[];
           if (!objects.length) return;
           objects.forEach((object) => canvas.remove(object));
           canvas.discardActiveObject();
@@ -252,7 +259,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
 
         return new Promise<void>((resolve) => {
           isRestoringRef.current = true;
-          canvas.setBackgroundColor('#ffffff', () => undefined);
+          canvas.backgroundColor = '#ffffff';
           canvas.discardActiveObject();
           canvas.clear();
           canvas.renderAll();
@@ -321,7 +328,9 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
       if (!canvas.getObjects().length) return;
-      canvas.getObjects().slice().forEach((object) => canvas.remove(object));
+      canvas.getObjects()
+        .slice()
+        .forEach((object) => canvas.remove(object));
       canvas.discardActiveObject();
       canvas.renderAll();
       commitHistory();
@@ -376,7 +385,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
         let startX = 0;
         let startY = 0;
 
-        const onMouseDown = (event: FabricNamespace.IEvent<MouseEvent>) => {
+        const onMouseDown = (event: any) => {
           if (!canvas || event.e.button !== 0) return;
           const pointer = canvas.getPointer(event.e);
           startX = pointer.x;
@@ -397,7 +406,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           canvas.add(rect);
         };
 
-        const onMouseMove = (event: FabricNamespace.IEvent<MouseEvent>) => {
+        const onMouseMove = (event: any) => {
           if (!canvas || !rect) return;
           const pointer = canvas.getPointer(event.e);
           const width = pointer.x - startX;
@@ -427,7 +436,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       }
 
       if (tool === 'text') {
-        const onMouseDown = (event: FabricNamespace.IEvent<MouseEvent>) => {
+        const onMouseDown = (event: any) => {
           if (!canvas || event.e.button !== 0) return;
           if (event.target) return; // avoid adding text on existing object
           const pointer = canvas.getPointer(event.e);
@@ -451,7 +460,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       }
 
       if (tool === 'eraser') {
-        const onMouseDown = (event: FabricNamespace.IEvent<MouseEvent>) => {
+        const onMouseDown = (event: any) => {
           if (!canvas || event.e.button !== 0) return;
           if (event.target) {
             canvas.remove(event.target);

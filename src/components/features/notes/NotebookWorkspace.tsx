@@ -103,13 +103,14 @@ export default function NotebookWorkspace() {
 
   useEffect(() => {
     if (!selectedNotebookId) return;
+    const notebookId = selectedNotebookId;
     let ignore = false;
 
     async function loadPage() {
       setIsPageLoading(true);
       resetStatus();
       try {
-        const page = await fetchNotebookPage({ notebookId: selectedNotebookId, pageNumber });
+        const page = await fetchNotebookPage({ notebookId, pageNumber });
         if (ignore) return;
         await canvasRef.current?.load(page?.vectorJson ?? null);
         if (ignore) return;
