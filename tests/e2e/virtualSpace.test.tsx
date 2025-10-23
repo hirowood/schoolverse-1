@@ -110,6 +110,7 @@ vi.mock('@/lib/socket/socketClient', () => {
   };
 
   return {
+    __esModule: true,
     getSocket: () => instance,
     __socketMock: helpers,
   };

@@ -159,8 +159,9 @@ function LocalPlayer({ keys, displayName, onBroadcast }: LocalPlayerProps) {
     nextZ = THREE.MathUtils.clamp(nextZ, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
     current.set(nextX, AVATAR_HEIGHT, nextZ);
 
-    if (groupRef.current) {
-      groupRef.current.position.copy(current);
+    const group = groupRef.current as THREE.Group | null;
+    if (group) {
+      group.position.copy(current);
     }
 
     cameraTarget.current.set(current.x, current.y, current.z);
