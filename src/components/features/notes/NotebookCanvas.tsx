@@ -7,7 +7,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import type * as FabricNamespace from 'fabric';
+import type {
+  Canvas,
+  CanvasEvents,
+  CanvasPointerEvents,
+  FabricObject,
+  Rect,
+} from 'fabric';
 
 export type NotebookTool = 'select' | 'pen' | 'rectangle' | 'text' | 'eraser';
 
@@ -34,6 +40,8 @@ type HistoryState = {
   future: unknown[];
 };
 
+type FabricEventHandler<TEvent> = (event: TEvent) => void;
+
 const MAX_HISTORY_LENGTH = 50;
 
 function normalizeVectorJson(input: unknown): Record<string, unknown> | null {
@@ -54,16 +62,27 @@ function normalizeVectorJson(input: unknown): Record<string, unknown> | null {
 
 const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
   ({ tool, strokeColor, fillColor, strokeWidth, onChange, onHistoryChange }, ref) => {
-    const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const fabricCanvasRef = useRef<FabricNamespace.Canvas | null>(null);
-    const fabricModuleRef = useRef<typeof FabricNamespace | null>(null);
-    const pendingLoadRef = useRef<unknown | null>(null);
-    const isRestoringRef = useRef(false);
-    const toolHandlersRef = useRef<Record<string, any>>({});
-    const historyRef = useRef<HistoryState>({ past: [], future: [] });
-    const lastSerializedRef = useRef<string>('');
-    const [isReady, setIsReady] = useState(false);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fabricCanvasRef = useRef<Canvas | null>(null);
+  const fabricModuleRef = useRef<typeof import('fabric') | null>(null);
+  const pendingLoadRef = useRef<unknown | null>(null);
+  const isRestoringRef = useRef(false);
+  type RectangleHandlers = {
+    onMouseDown: (event: CanvasPointerEvents['mouse:down']) => void;
+    onMouseMove: (event: CanvasPointerEvents['mouse:move']) => void;
+    onMouseUp: (event: CanvasPointerEvents['mouse:up']) => void;
+  };
+  type TextHandlers = { onMouseDown: (event: CanvasPointerEvents['mouse:down']) => void };
+  type EraserHandlers = { onMouseDown: (event: CanvasPointerEvents['mouse:down']) => void };
+  type ToolHandlers = { rectangle?: RectangleHandlers; text?: TextHandlers; eraser?: EraserHandlers };
+  const toolHandlersRef = useRef<ToolHandlers>({});
+  type PointerDownEvent = CanvasPointerEvents['mouse:down'];
+  type PointerMoveEvent = CanvasPointerEvents['mouse:move'];
+  type PointerUpEvent = CanvasPointerEvents['mouse:up'];
+  const historyRef = useRef<HistoryState>({ past: [], future: [] });
+  const lastSerializedRef = useRef<string>('');
+  const [isReady, setIsReady] = useState(false);
 
     const updateHistoryFlags = useCallback(() => {
       onHistoryChange?.({
@@ -138,13 +157,9 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
         if (!canvasElement) return;
 
         try {
-          const module = await import('fabric');
+          const fabricImport = await import('fabric');
           if (!isMounted) return;
-          const moduleFabric = module as typeof FabricNamespace & {
-            fabric?: typeof FabricNamespace;
-            default?: typeof FabricNamespace;
-          };
-          const fabricModule = moduleFabric.fabric ?? moduleFabric.default;
+          const fabricModule = (fabricImport as { fabric?: typeof fabricImport }).fabric ?? fabricImport;
           if (!fabricModule) {
             throw new Error('Failed to load Fabric.js');
           }
@@ -173,10 +188,27 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           onChange?.(initialSnapshot);
 
           // Attach event listeners for history tracking
-          const changeEvents = ['object:added', 'object:modified', 'object:removed'];
-          const handleChanged = () => commitHistory();
-          changeEvents.forEach((event) => canvas.on(event as any, handleChanged as any));
-          canvas.on('path:created' as any, handleChanged as any);
+          const handleObjectAdded: FabricEventHandler<CanvasEvents['object:added']> = (event) => {
+            void event;
+            commitHistory();
+          };
+          const handleObjectModified: FabricEventHandler<CanvasEvents['object:modified']> = (event) => {
+            void event;
+            commitHistory();
+          };
+          const handleObjectRemoved: FabricEventHandler<CanvasEvents['object:removed']> = (event) => {
+            void event;
+            commitHistory();
+          };
+          const handlePathCreated: FabricEventHandler<CanvasEvents['path:created']> = (event) => {
+            void event;
+            commitHistory();
+          };
+
+          canvas.on('object:added', handleObjectAdded);
+          canvas.on('object:modified', handleObjectModified);
+          canvas.on('object:removed', handleObjectRemoved);
+          canvas.on('path:created', handlePathCreated);
 
           // Apply pending load if any
           if (pendingLoadRef.current !== null) {
@@ -189,8 +221,10 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           setIsReady(true);
 
           return () => {
-          changeEvents.forEach((event) => canvas.off(event as any, handleChanged as any));
-          canvas.off('path:created' as any, handleChanged as any);
+            canvas.off('object:added', handleObjectAdded);
+            canvas.off('object:modified', handleObjectModified);
+            canvas.off('object:removed', handleObjectRemoved);
+            canvas.off('path:created', handlePathCreated);
           };
         } catch (error) {
           console.error('[NotebookCanvas] Failed to initialize fabric canvas', error);
@@ -235,7 +269,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
         } else if (event.key === 'Delete' || event.key === 'Backspace') {
           const canvas = fabricCanvasRef.current;
           if (!canvas) return;
-          const objects = canvas.getActiveObjects() as FabricNamespace.Object[];
+          const objects = canvas.getActiveObjects() as FabricObject[];
           if (!objects.length) return;
           objects.forEach((object) => canvas.remove(object));
           canvas.discardActiveObject();
@@ -362,8 +396,8 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
 
     useEffect(() => {
       const canvas = fabricCanvasRef.current;
-      const fabric = fabricModuleRef.current;
-      if (!canvas || !fabric) return;
+      const fabricModule = fabricModuleRef.current;
+      if (!canvas || !fabricModule) return;
 
       detachToolHandlers();
       canvas.isDrawingMode = false;
@@ -371,7 +405,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       canvas.defaultCursor = tool === 'pen' || tool === 'rectangle' ? 'crosshair' : 'default';
 
       if (tool === 'pen') {
-        const brush = new fabric.PencilBrush(canvas);
+        const brush = new fabricModule.PencilBrush(canvas);
         brush.color = strokeColor;
         brush.width = strokeWidth;
         brush.decimate = 6;
@@ -381,16 +415,17 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       }
 
       if (tool === 'rectangle') {
-        let rect: FabricNamespace.Rect | null = null;
+        let rect: Rect | null = null;
         let startX = 0;
         let startY = 0;
 
-        const onMouseDown = (event: any) => {
-          if (!canvas || event.e.button !== 0) return;
+        const onMouseDown = (event: PointerDownEvent) => {
+          if (!canvas) return;
+          if ('button' in event.e && event.e.button !== 0) return;
           const pointer = canvas.getPointer(event.e);
           startX = pointer.x;
           startY = pointer.y;
-          rect = new fabric.Rect({
+          rect = new fabricModule.Rect({
             left: startX,
             top: startY,
             width: 0,
@@ -406,7 +441,7 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           canvas.add(rect);
         };
 
-        const onMouseMove = (event: any) => {
+        const onMouseMove = (event: PointerMoveEvent) => {
           if (!canvas || !rect) return;
           const pointer = canvas.getPointer(event.e);
           const width = pointer.x - startX;
@@ -421,7 +456,8 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
           canvas.renderAll();
         };
 
-        const onMouseUp = () => {
+        const onMouseUp = (event: PointerUpEvent) => {
+          void event;
           if (!canvas || !rect) return;
           rect.set({ selectable: true, evented: true });
           rect = null;
@@ -436,11 +472,12 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       }
 
       if (tool === 'text') {
-        const onMouseDown = (event: any) => {
-          if (!canvas || event.e.button !== 0) return;
-          if (event.target) return; // avoid adding text on existing object
+        const onMouseDown = (event: PointerDownEvent) => {
+          if (!canvas) return;
+          if ('button' in event.e && event.e.button !== 0) return;
+          if (event.target) return;
           const pointer = canvas.getPointer(event.e);
-          const text = new fabric.IText('テキスト', {
+          const text = new fabricModule.IText('テキスト', {
             left: pointer.x,
             top: pointer.y,
             fill: strokeColor,
@@ -460,8 +497,9 @@ const NotebookCanvas = forwardRef<NotebookCanvasHandle, NotebookCanvasProps>(
       }
 
       if (tool === 'eraser') {
-        const onMouseDown = (event: any) => {
-          if (!canvas || event.e.button !== 0) return;
+        const onMouseDown = (event: PointerDownEvent) => {
+          if (!canvas) return;
+          if ('button' in event.e && event.e.button !== 0) return;
           if (event.target) {
             canvas.remove(event.target);
             canvas.renderAll();
