@@ -94,7 +94,6 @@ export default function NotebookWorkspace() {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isDirty) return;
       event.preventDefault();
-      // eslint-disable-next-line no-param-reassign
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);

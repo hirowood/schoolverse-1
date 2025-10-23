@@ -245,51 +245,63 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         displayName: authUser?.displayName ?? 'You',
         avatarUrl: authUser?.avatarUrl ?? null,
       },
-      receipts: [],
-    };
+    receipts: [],
+  };
 
-    set((prev) => ({
-      messages: {
-        ...prev.messages,
-        [roomId]: [...(prev.messages[roomId] ?? []), optimisticMessage],
-      },
-    }));
+  set((prev) => ({
+    messages: {
+      ...prev.messages,
+      [roomId]: [...(prev.messages[roomId] ?? []), optimisticMessage],
+    },
+  }));
 
-    try {
-      const response = await fetch(`/api/chat/rooms/${roomId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+  const removeOptimisticMessage = (errorMessage?: string) => {
+    set((prev) => {
+      const remaining = (prev.messages[roomId] ?? []).filter((msg) => msg.id !== optimisticId);
+      const messages = { ...prev.messages };
+      if (remaining.length === 0) {
+        delete messages[roomId];
+      } else {
+        messages[roomId] = remaining;
+      }
+      const messageErrors = { ...prev.messageErrors };
+      if (errorMessage) {
+        messageErrors[roomId] = errorMessage;
+      } else {
+        delete messageErrors[roomId];
+      }
+
+      return {
+        messages,
+        messageErrors,
+      };
+    });
+  };
+
+  try {
+    const response = await fetch(`/api/chat/rooms/${roomId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const data = await parseJson<{ error?: string }>(response);
-        set((prev) => ({
-          messages: {
-            ...prev.messages,
-            [roomId]: (prev.messages[roomId] ?? []).filter((msg) => msg.id !== optimisticId),
-          },
-          messageErrors: { ...prev.messageErrors, [roomId]: data.error ?? 'MESSAGE_SEND_FAILED' },
-        }));
-        return;
-      }
-
-      const data = await parseJson<{ message: ChatMessage }>(response);
-      get().upsertMessage(roomId, data.message);
-     const socket = getSocket();
-      socket.emit('chat:message:new', { roomId, userId: data.message.senderId, message: data.message });
-    } catch (error) {
-      console.error('[chatStore] sendMessage error', error);
-      set((prev) => ({
-        messages: {
-          ...prev.messages,
-          [roomId]: (prev.messages[roomId] ?? []).filter((msg) => msg.id !== optimisticId),
-        },
-        messageErrors: { ...prev.messageErrors, [roomId]: 'MESSAGE_SEND_FAILED' },
-      }));
+    if (!response.ok) {
+      const data = await parseJson<{ error?: string }>(response);
+      removeOptimisticMessage(data.error ?? 'MESSAGE_SEND_FAILED');
+      return;
     }
-  },
+
+    const data = await parseJson<{ message: ChatMessage }>(response);
+    removeOptimisticMessage();
+    get().upsertMessage(roomId, data.message);
+    const socket = getSocket();
+    socket.emit('chat:message:new', { roomId, userId: data.message.senderId, message: data.message });
+  } catch (error) {
+    console.error('[chatStore] sendMessage error', error);
+    removeOptimisticMessage('MESSAGE_SEND_FAILED');
+  }
+},
 
   upsertMessage: (roomId, message) => {
     set((prev) => {
