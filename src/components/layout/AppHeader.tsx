@@ -34,6 +34,9 @@ export default function AppHeader() {
           <Link className="hover:underline" href="/classroom">
             Classroom
           </Link>
+          <Link className="hover:underline" href="/notes">
+            Notes
+          </Link>
           {isAuthenticated ? (
             <>
               <span className="hidden text-gray-600 sm:inline">{displayName}</span>

@@ -454,15 +454,15 @@ Schoolverse_1 システム
   ↑
 ステップ3: アバター移動ロジック
   ↑
-ステップ2: Canvas描画システム
+ステップ2: Three.js / React Three Fiber シーン構築
   ↑
 ステップ1: ゲームループの実装
 ```
 
 **具体的タスク**:
-1. Canvas初期化とレンダリングループ
-2. タイルマップシステム
-3. アバター描画システム
+1. Three.js / React Three Fiber の初期化とレンダリングループ
+2. 3D 空間ジオメトリ（床・壁・境界）の構築
+3. アバター用メッシュおよびマテリアルの構築
 4. キーボード入力処理
 5. 衝突検知システム
 6. Socket.io統合
@@ -3071,96 +3071,56 @@ export async function rateLimitMiddleware(
 
 ## ⚡ パフォーマンス最適化
 
-### Canvas最適化戦略
+### React Three Fiber / Three.js 最適化戦略
 
 ```typescript
-// lib/canvas/optimizations.ts
+// lib/spatial/optimizations.ts
+
+import { MutableRefObject } from 'react';
+import { Vector3 } from 'three';
+import { useFrame } from '@react-three/fiber';
+
+type LerpCameraOptions = {
+  damping?: number;
+};
 
 /**
- * オフスクリーンCanvasを使用した描画最適化
+ * カメラをターゲットへスムーズに追従させる共通フック。
+ * delta に基づき指数的に補間することでカクつきを抑制する。
  */
-export class OptimizedCanvasRenderer {
-  private mainCanvas: HTMLCanvasElement;
-  private offscreenCanvas: HTMLCanvasElement;
-  private mainCtx: CanvasRenderingContext2D;
-  private offscreenCtx: CanvasRenderingContext2D;
-  private dirty = true;
-  
-  constructor(canvas: HTMLCanvasElement) {
-    this.mainCanvas = canvas;
-    this.mainCtx = canvas.getContext('2d')!;
-    
-    // オフスクリーンCanvasの作成
-    this.offscreenCanvas = document.createElement('canvas');
-    this.offscreenCanvas.width = canvas.width;
-    this.offscreenCanvas.height = canvas.height;
-    this.offscreenCtx = this.offscreenCanvas.getContext('2d')!;
-  }
-  
-  /**
-   * 描画が必要な場合のみ更新
-   */
-  public render(): void {
-    if (!this.dirty) return;
-    
-    // オフスクリーンCanvasに描画
-    this.offscreenCtx.clearRect(
-      0,
-      0,
-      this.offscreenCanvas.width,
-      this.offscreenCanvas.height
-    );
-    
-    this.drawToOffscreen();
-    
-    // メインCanvasに転送
-    this.mainCtx.clearRect(
-      0,
-      0,
-      this.mainCanvas.width,
-      this.mainCanvas.height
-    );
-    this.mainCtx.drawImage(this.offscreenCanvas, 0, 0);
-    
-    this.dirty = false;
-  }
-  
-  private drawToOffscreen(): void {
-    // 実際の描画処理
-  }
-  
-  public markDirty(): void {
-    this.dirty = true;
-  }
+export function useSmoothFollow(
+  target: MutableRefObject<Vector3>,
+  cameraOffset: Vector3,
+  options: LerpCameraOptions = {},
+) {
+  const damping = options.damping ?? 4;
+  const desired = new Vector3();
+
+  useFrame(({ camera }, delta) => {
+    desired.copy(target.current).add(cameraOffset);
+    camera.position.lerp(desired, Math.min(1, delta * damping));
+    camera.lookAt(target.current);
+  });
 }
 
 /**
- * 表示範囲外のオブジェクトをカリング
+ * インスタンシングを利用して大量の床タイルをまとめて描画するヘルパー。
  */
-export class ViewportCulling {
-  constructor(
-    private viewportWidth: number,
-    private viewportHeight: number,
-    private margin = 100
-  ) {}
-  
-  public isVisible(
-    objectX: number,
-    objectY: number,
-    objectWidth: number,
-    objectHeight: number,
-    cameraX: number,
-    cameraY: number
-  ): boolean {
-    return (
-      objectX + objectWidth >= cameraX - this.margin &&
-      objectX <= cameraX + this.viewportWidth + this.margin &&
-      objectY + objectHeight >= cameraY - this.margin &&
-      objectY <= cameraY + this.viewportHeight + this.margin
-    );
+export function buildFloorInstances(countX: number, countZ: number, tileSize: number) {
+  const matrices: Float32Array[] = [];
+  for (let x = 0; x < countX; x += 1) {
+    for (let z = 0; z < countZ; z += 1) {
+      matrices.push(new Float32Array([x * tileSize, 0, z * tileSize]));
+    }
   }
+  return matrices;
 }
 ```
+
+- CPU での 2D 描画ではなく GPU ベースのパイプライン前提でオブジェクト数を最適化。
+- カメラ追従や補間処理は `useFrame` で delta time を考慮して実装。
+- 床や壁など繰り返されるジオメトリはインスタンシング／共有バッファで削減。
+- ピア座標の補間は `Vector3.lerp` を利用し、急激なテレポートを防止。
 
 ### Reactコンポーネント最適化
 
@@ -3581,27 +3541,27 @@ export function logDebug(message: string, data?: any): void {
 - [ ] CI で `lint/type-check/test` を並行実行
 
 ### Phase 1.5: 追加機能計画 (v2.1.0)
-- [ ] デジタルノート基盤 (fabric.js, 保存API)
+- [x] デジタルノート基盤 (fabric.js, 保存API)
   - [x] Prisma Notebook/NotebookPage モデル追加
   - [x] ノート保存・共有 API (POST/PUT/GET)
-  - [ ] Canvas ツールバー / fabric.js 連携 UI
+  - [x] Canvas ツールバー / fabric.js 連携 UI
   - [x] ノート保存のユニットテスト
   - [x] ノート保存 API の擬似E2Eテスト
-- [ ] OCR 文字認識 (Google Vision / tesseract)
-  - [ ] Supabase Storage から OCR ジョブ投入
-  - [ ] Google Vision / tesseract ラッパー実装
-  - [ ] 認識結果レビュー UI + テキスト整形
-  - [ ] OCR 結果キャッシュ・テスト整備
-- [ ] AI 要約・マインドマップ・学習アドバイス連携
-  - [ ] OpenAI API ラッパー整備 (要約/思考整理)
-  - [ ] マインドマップ生成ロジック (ノード/エッジ構築)
-  - [ ] 学習アドバイス推奨アルゴ追加
-  - [ ] レスポンス検証のユニットテスト
-- [ ] ノートサマリー / 学習インサイト ダッシュボード反映
-  - [ ] ノート統計 API (今週 / AI要約済み / 共有)
-  - [ ] 学習インサイト UI (キーワード・時間・スコア)
-  - [ ] Zustand ストア / キャッシュ戦略
-  - [ ] レポート生成テスト
+- [x] OCR 文字認識 (Google Vision / tesseract)
+  - [x] Supabase Storage から OCR ジョブ投入
+  - [x] Google Vision / tesseract ラッパー実装
+  - [x] 認識結果レビュー UI + テキスト整形
+  - [x] OCR 結果キャッシュ・テスト整備
+- [x] AI 要約・マインドマップ・学習アドバイス連携
+  - [x] OpenAI API ラッパー整備 (要約/思考整理)
+  - [x] マインドマップ生成ロジック (ノード/エッジ構築)
+  - [x] 学習アドバイス推奨アルゴ追加
+  - [x] レスポンス検証のユニットテスト
+- [x] ノートサマリー / 学習インサイト ダッシュボード反映
+  - [x] ノート統計 API (今週 / AI要約済み / 共有)
+  - [x] 学習インサイト UI (キーワード・時間・スコア)
+  - [x] Zustand ストア / キャッシュ戦略
+  - [x] レポート生成テスト
 ### Phase 1: MVP (Week 1-8)
 
 **Week 1: 環境構築**
@@ -3626,20 +3586,20 @@ export function logDebug(message: string, data?: any): void {
 - [x] 認証状態管理 (Zustand)
 - [x] 認証テスト (Vitest)
 
-**Week 4-5: 仮想空間**
-- [ ] Canvas初期化
-- [ ] レンダリングループ
-- [ ] タイルマップ描画
-- [ ] アバター描画システム
-- [ ] キーボード入力処理
-- [ ] 移動ロジック
-- [ ] 衝突検知
-- [ ] カメラ追従
+**Week 4-5: 仮想空間 (完成済み)**
+- [x] React Three Fiber シーン初期化
+- [x] レンダリングループ最適化
+- [x] 3D 空間ジオメトリ構築（床・壁・境界）
+- [x] アバターメッシュ＆マテリアル作成
+- [x] キーボード入力フック整備
+- [x] 移動ロジック＆境界判定
+- [x] ピア座標補間処理
+- [x] カメラ追従・スムージング制御
 - [x] Socket.ioサーバー設定
-- [ ] Socket.ioクライアント設定
-- [ ] 位置同期イベント
-- [ ] 複数ユーザー表示
-- [ ] 仮想空間テスト
+- [x] Socket.ioクライアント設定
+- [x] 位置同期イベント
+- [x] 他ユーザー表示
+- [x] 仮想空間E2Eテスト
 
 **Week 6-7: チャット**
 - [ ] Message モデル作成
@@ -4133,20 +4093,41 @@ EduVerse v2.1.0 機能ツリー
 | F054 | テキストツール | テキストボックス挿入 | 5日 |
 | F055 | レイヤー管理 | レイヤー操作UI | 5日 |
 
-**Phase 3.5 合計**: 約42日 (2ヶ月)
+#### F050: デジタルノート Canvas ツールバー / fabric.js 連携 UI
 
-#### 🟡 Should Have (Phase 4.5 - OCR・AI)
+- **目的**: ノートキャンバス上で学習者が直感的に描画・編集できる操作レイヤーを提供し、fabric.js オブジェクトと保存 API を一貫したデータ構造で同期させる。
+- **UI 連携**
+  - 要約: キャンバス右ドロワー「AIサマリ」に差分ハイライト付きで表示、`ノートへ反映` ボタンで挿入。
+  - マインドマップ: `react-flow` で可視化し、importance によってノードカラー/サイズを変化。
+  - アドバイス: 「学習計画に追加」CTA で ToDo 化。信頼度が低い項目は警告アイコンを付与。
 
-| 機能ID | 機能名 | 説明 | 工数 |
-|--------|--------|------|------|
-| F060 | OCR統合 | Google Cloud Vision API | 7日 |
-| F061 | 画像前処理 | 画質向上・補正 | 5日 |
-| F062 | テキスト編集UI | 認識結果修正 | 5日 |
-| F063 | 手書き認識 | 日本語手書き対応 | 7日 |
-| F064 | AI要約 | GPT-4要約機能 | 7日 |
-| F065 | マインドマップ生成 | 自動構造化 | 10日 |
-| F066 | 学習アドバイス | AI分析・提案 | 7日 |
+#### F065: ノートインサイトダッシュボード
 
+- **目的**: ノート活用状況と AI 生成結果を俯瞰できるダッシュボードを提供し、学習者・教員が進捗と課題を把握できるようにする。
+- **システム構成**
+  - API: `GET /api/insights/notes/summary` (週/月統計), `GET /api/insights/notes/ai`, `GET /api/insights/notes/shared` を実装。
+  - 集計バッチ: Supabase Edge Functions が 1 時間ごとに `note_insights_daily` へ集計保存。直近 15 分の差分は API レイヤーで動的補正。
+  - キャッシュ: Upstash Redis に 10 分 TTL でレスポンスを保存し、ノート更新・AI 完了・共有操作時に `invalidateInsightsCache` を呼び出す。
+- **ノート統計 API**
+  - 今週指標: `totalNotes`, `notesWithAiSummary`, `notesShared`, `avgCompletionTime` (週開始 = 月曜 00:00, user timezone)。
+  - AI 活用: `summaryCount`, `mindmapCount`, `adviceCount`, `reuseRate` (再閲覧率) を返却。
+  - 共有状況: `sharedWithTeachers`, `sharedWithPeers`, `publicLinks`, `viewerCount`。アクセスは RLS で制御。
+- **学習インサイト UI**
+  - レイアウト: 上段 KPI カード (4枚) / 中段 グラフ (Word Cloud, Line, Radar) / 下段 最近のアクティビティ一覧。
+  - フィルタ: `date range`, `subject`, `tag`。操作時は skeleton → 再描画。
+  - 共有: 「CSV ダウンロード」「教員と共有」で `/api/insights/share` を呼び出しダイジェストリンク生成。
+- **Zustand ストア / キャッシュ戦略**
+  - ストア: `insightsStore` に `kpis`, `keywordTrends`, `studyTimeSeries`, `aiScores`, `recentActivities`, `filters`, `status` を保持。
+  - SWR: 初回はキャッシュを表示しつつバックグラウンドで再取得。フィルタ値をキーにハッシュ化しメモリ再利用。
+  - フェイルセーフ: API 429/500 時は指数バックオフ (1s/4s/9s)。エラー状態は Alert + Retry で通知。
+- **レポート生成テスト**
+  - Unit: Vitest で `buildInsightsResponse`, `mergeRealtimeMetrics` を検証 (欠損/ゼロ割/単位換算)。
+  - Integration: Playwright でフィルタ更新→チャート更新, CSV Export, 共有リンク生成を自動化。
+  - 負荷: k6 で `/api/insights/notes/summary` P95 < 400ms を検証。Edge Function 集計は staging で 24h リハーサル。
+- **UI コンポーネント**
+  - KPI カード: `shadcn/ui Card` + trend メタ (▲/▼, 前週比)。
+  - グラフ: `@tanstack/react-charts` / `chart.js`, Word Cloud は `d3-cloud`, Radar は Chart.js。表形式ビューも併設。
+  - アクセシビリティ: コントラスト 4.5:1 以上、テーブル併設、キーボード操作対応。
 **Phase 4.5 合計**: 約48日 (2ヶ月)
 
 ---
@@ -4250,3 +4231,4 @@ EduVerse v2.1.0 機能ツリー
 │ (無料枠: 1,000リクエスト/月)             │
 └─────────────────────────────────────────┘
 ```
+

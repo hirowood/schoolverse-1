@@ -23,3 +23,19 @@ export type UpsertNotebookPageInput = {
   vectorJson?: unknown;
   pdfAssetId?: string | null;
 };
+
+export type NotebookSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  tags: string[];
+  isShared: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NotebookPagePayload = {
+  pageNumber: number;
+  vectorJson?: unknown;
+  pdfAssetId?: string | null;
+};
