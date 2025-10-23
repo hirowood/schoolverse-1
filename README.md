@@ -119,6 +119,18 @@ Phase 2 以降で mediasoup SFU / AI / OCR ワーカーをコンテナ追加す�
 
 ---
 
+## ✅ テスト & ベンチマーク概要
+
+| カテゴリ | コマンド | 備考 |
+|----------|----------|------|
+| 単体テスト (チャット/ノート) | `npm run test:unit`<br/>`npx vitest run tests/services/chatService.test.ts tests/services/noteService.test.ts` | 仮想空間モック (`tests/e2e/virtualSpace.test.tsx`) は既知の制約により失敗することがあります |
+| パフォーマンス・スモーク | `npx vitest run tests/perf/notebookPerformance.test.ts` | `NoteService` の平均応答時間が 1〜2ms 未満であることを継続確認 |
+| E2E 統合フロー | `npx playwright install` (初回のみ)<br/>`npx playwright test tests/playwright/mvp-flow.spec.ts` | Notes → Chat → Virtual Space のハッピーパスを通しで検証 |
+
+詳細なレポートは `docs/testing-report.md` を参照してください。
+
+---
+
 ## 📝 追加ドキュメント
 
 - `docs/requirements.md` … 仕様/WBS/ロードマップ (常に最新に保つ)  
