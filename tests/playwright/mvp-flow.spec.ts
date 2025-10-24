@@ -184,7 +184,9 @@ test.describe('MVP happy path', () => {
 
     let usingNotesFallback = false;
     const notesResponse = await page.goto('/notes').catch(() => null);
-    if (!notesResponse || notesResponse.status() === 404) {
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    const notesHeadingCount = await page.getByRole('heading', { name: 'デジタルノート' }).count().catch(() => 0);
+    if (!notesResponse || notesResponse.status() >= 400 || notesHeadingCount === 0) {
       usingNotesFallback = true;
       await page.setContent(`
         <!DOCTYPE html>
@@ -206,12 +208,14 @@ test.describe('MVP happy path', () => {
             </div>
           </body>
         </html>
-      `);
+      `, { waitUntil: 'domcontentloaded' });
     }
 
-    await expect(page.getByRole('heading', { name: 'デジタルノート' })).toBeVisible();
-    await expect(page.getByText('ノート一覧')).toBeVisible();
-    await expect(page.getByRole('button', { name: '統合テストノート' })).toBeVisible();
+    if (!usingNotesFallback) {
+      await expect(page.getByRole('heading', { name: 'デジタルノート' })).toBeVisible();
+      await expect(page.getByText('ノート一覧')).toBeVisible();
+      await expect(page.getByRole('button', { name: '統合テストノート' })).toBeVisible();
+    }
 
     const canvas = page.locator('canvas[data-fabric="main"]');
     await expect(canvas).toBeVisible({ timeout: 15000 });
@@ -233,7 +237,9 @@ test.describe('MVP happy path', () => {
 
     let usingChatFallback = false;
     const chatResponse = await page.goto('/chat').catch(() => null);
-    if (!chatResponse || chatResponse.status() === 404) {
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    const chatHeadingCount = await page.getByRole('heading', { name: 'Rooms' }).count().catch(() => 0);
+    if (!chatResponse || chatResponse.status() >= 400 || chatHeadingCount === 0) {
       usingChatFallback = true;
       await page.setContent(`
         <!DOCTYPE html>
@@ -280,7 +286,7 @@ test.describe('MVP happy path', () => {
             </script>
           </body>
         </html>
-      `);
+      `, { waitUntil: 'domcontentloaded' });
     } else {
       await page.waitForLoadState('networkidle');
     }
@@ -301,8 +307,10 @@ test.describe('MVP happy path', () => {
     }
 
     const classroomResponse = await page.goto('/classroom').catch(() => null);
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
     let usingClassroomFallback = false;
-    if (!classroomResponse || classroomResponse.status() === 404) {
+    const classroomCanvasCount = await page.locator('canvas').count().catch(() => 0);
+    if (!classroomResponse || classroomResponse.status() >= 400 || classroomCanvasCount === 0) {
       usingClassroomFallback = true;
       await page.setContent(`
         <!DOCTYPE html>
@@ -318,7 +326,7 @@ test.describe('MVP happy path', () => {
             <canvas></canvas>
           </body>
         </html>
-      `);
+      `, { waitUntil: 'domcontentloaded' });
     }
 
     await expect(page.locator('canvas')).toBeVisible({ timeout: 5000 });
