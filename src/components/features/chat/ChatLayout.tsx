@@ -6,6 +6,7 @@ import RoomListPanel from './RoomListPanel';
 import MessageViewport from './MessageViewport';
 import MessageComposer from './MessageComposer';
 import TypingIndicator from './TypingIndicator';
+import VoicePanel from '@/components/features/voice/VoicePanel';
 
 export default function ChatLayout() {
   const rooms = useChatStore((state) => state.rooms);
@@ -52,9 +53,14 @@ export default function ChatLayout() {
             </div>
           ) : (
             <>
-              <MessageViewport />
-              <TypingIndicator />
-              <MessageComposer />
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <section className="flex flex-col">
+                  <MessageViewport />
+                  <TypingIndicator />
+                  <MessageComposer />
+                </section>
+                <VoicePanel roomId={activeRoomId} />
+              </div>
             </>
           )}
         </main>

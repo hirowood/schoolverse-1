@@ -55,6 +55,7 @@ GOOGLE_APPLICATION_CREDENTIALS="(Phase4.5: OCRで使用。サービスアカウ�
 |----------|------|
 | `npm run dev` | Next.js 開発サーバー (http://localhost:3000) |
 | `npm run rt:dev` | Socket.io realtime サーバー (`server/index.ts`) |
+| `npm run rt:mediasoup` | WebRTC SFU / mediasoup シグナリング (`server/rtc/mediasoupServer.ts`) |
 | `npm run lint` | ESLint (TypeScript / React) |
 | `npm run type-check` | TypeScript の型チェック |
 | `npm run build` / `npm run start` | 本番ビルド & 起動 |
