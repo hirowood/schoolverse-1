@@ -3613,7 +3613,7 @@ export function logDebug(message: string, data?: any): void {
 - [x] チャットテスト
 
 **Week 8: MVP統合**
-- [ ] 全機能統合テスト
+- [x] 全機能統合テスト
 - [x] エッジケーステスト
 - [x] パフォーマンステスト
 - [x] バグ修正
