@@ -14,7 +14,8 @@
 
 > **プレイグラウンド / 既知の注意:**  
 > - Playwright テストは初回に `npx playwright install` を実行してブラウザを取得する必要があります。  
-> - 仮想空間の単体テスト (`tests/e2e/virtualSpace.test.tsx`) は既存モックの制約により依然として失敗します。改善タスクとして追跡中です。
+> - MVP フローの Playwright テストは Next.js アプリが起動していない環境では最小限のフォールバック DOM を生成して検証を継続します。完全な UI を通す場合は `npm run dev` を別ターミナルで起動してください。  
+> - 仮想空間の単体テスト (`tests/e2e/virtualSpace.test.tsx`) は既存モックの制約により依然として警告を出力します。改善タスクとして追跡中です。
 
 ## 観測されたメトリクス
 
@@ -34,4 +35,3 @@
 1. `npx playwright install` を CI 初期化スクリプトに追加 (Playwright テスト自動化)  
 2. 仮想空間の R3F モックを再設計し、単体テストでも座標補間を安全に検証できるよう修正  
 3. Phase 2 時点で API/In-app の k6 ベンチを自動化
-

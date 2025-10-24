@@ -3616,7 +3616,7 @@ export function logDebug(message: string, data?: any): void {
 - [ ] 全機能統合テスト
 - [x] エッジケーステスト
 - [x] パフォーマンステスト
-- [ ] バグ修正
+- [x] バグ修正
 - [x] ドキュメント更新
 
 ---
