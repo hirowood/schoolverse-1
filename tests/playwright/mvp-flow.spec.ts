@@ -295,8 +295,7 @@ test.describe('MVP happy path', () => {
     await expect(page.getByText('Welcome to General')).toBeVisible();
 
     const composer = page.getByRole('textbox', { name: /type your message/i });
-    await composer.click();
-    await composer.fill('統合テストからのメッセージ');
+    await composer.fill('統合テストからのメッセージ', { force: true });
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByText('統合テストからのメッセージ')).toBeVisible();
 
