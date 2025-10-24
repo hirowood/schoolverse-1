@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRTCManager } from "@/lib/rtc";
 import type { RTCManager } from "@/lib/rtc/rtcManager";
+import { MediasoupClient } from "@/lib/rtc/mediasoupClient";
 import { getSocket } from "@/lib/socket/socketClient";
 import { useAuthStore } from "@/store/authStore";
 import type { VoiceUserId } from "@/types/rtc";
@@ -20,6 +21,7 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
   const authUser = useAuthStore((state) => state.user);
   const socket = useMemo(() => getSocket(), []);
   const [rtcManager, setRtcManager] = useState<RTCManager | null>(null);
+  const [sfuClient, setSfuClient] = useState<MediasoupClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -28,6 +30,23 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
   useEffect(() => {
     const manager = createRTCManager({ socket });
     setRtcManager(manager);
+    const client = new MediasoupClient({ socket });
+    setSfuClient(client);
+
+    const unsubscribeRemoteTrack = client.on("remote-track", ({ userId, stream }) => {
+      attachRemoteStream(userId, stream);
+    });
+
+    const unsubscribeProducerClosed = client.on("producer-closed", ({ consumerId, userId }) => {
+      if (userId) {
+        detachRemoteStream(userId);
+      }
+    });
+
+    const unsubscribeClientError = client.on("error", ({ error: rtcError }) => {
+      console.error("[VoicePanel] mediasoup error", rtcError);
+      setError(rtcError.message);
+    });
 
     const unsubscribeTrack = manager.on("remote-track", ({ userId, stream }) => {
       attachRemoteStream(userId, stream);
@@ -52,13 +71,17 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
       unsubscribeParticipantLeft();
       unsubscribeLocalStream();
       unsubscribeError();
+      unsubscribeRemoteTrack();
+      unsubscribeProducerClosed();
+      unsubscribeClientError();
       manager.dispose();
       setRtcManager(null);
+      setSfuClient(null);
     };
   }, [socket]);
 
   useEffect(() => {
-    if (!rtcManager || !authUser?.id || !roomId) {
+    if (!rtcManager || !sfuClient || !authUser?.id || !roomId) {
       setIsConnected(false);
       return;
     }
@@ -77,6 +100,19 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
         console.error("[VoicePanel] failed to join voice room", joinError);
         setError(joinError instanceof Error ? joinError.message : "Failed to join voice room");
       });
+
+    const setupSfu = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        attachLocalStream(stream);
+        await sfuClient.joinRoom({ roomId, userId: authUser.id, stream });
+      } catch (sfuError) {
+        console.error("[VoicePanel] mediasoup join failed", sfuError);
+        setError(sfuError instanceof Error ? sfuError.message : "Failed to initialize SFU");
+      }
+    };
+
+    setupSfu().catch((error) => console.error("[VoicePanel] setupSfu error", error));
 
     const handleUserJoined = (data: { roomId: string; userId: VoiceUserId; displayName?: string | null }) => {
       if (data.roomId !== roomId) return;
@@ -107,6 +143,7 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
 
     return () => {
       rtcManager.leaveRoom();
+      sfuClient.leaveRoom();
       setIsConnected(false);
       socket.off("voice:userJoined", handleUserJoined);
       socket.off("voice:participants", handleParticipants);
@@ -115,7 +152,7 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
       detachLocalStream();
       detachAllRemoteStreams();
     };
-  }, [rtcManager, authUser?.id, authUser?.displayName, roomId, socket]);
+  }, [rtcManager, sfuClient, authUser?.id, authUser?.displayName, roomId, socket]);
 
   const handleToggleMute = async () => {
     if (!rtcManager) return;
