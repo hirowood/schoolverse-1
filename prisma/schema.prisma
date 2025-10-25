@@ -1,4 +1,3 @@
-// Prisma schema for Schoolverse_1
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,74 +5,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  username     String     @unique
-  passwordHash String
-  displayName  String?
-  avatarUrl    String?
-  avatarConfig Json?
-  status       UserStatus @default(OFFLINE)
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  messages      Message[]
-  roomMembers   RoomMember[]
-  sentCalls     VoiceCall[]  @relation("caller")
-  receivedCalls VoiceCall[]  @relation("callee")
-  sessions      Session[]
-  notebooks     Notebook[]
-
-  @@index([email])
-  @@index([status])
-}
-
-enum UserStatus {
-  ONLINE
-  OFFLINE
-  AWAY
-  BUSY
-}
-
-model Room {
-  id        String   @id @default(uuid())
-  name      String
-  type      RoomType
-  maxUsers  Int      @default(50)
-  mapData   Json
-  createdAt DateTime @default(now())
-
-  members  RoomMember[]
-  messages Message[]
-
-  @@index([type])
-}
-
-enum RoomType {
-  CLASSROOM
-  GALLERY
-  PARK
-  CUSTOM
-}
-
-model RoomMember {
-  id        String   @id @default(uuid())
-  userId    String
-  roomId    String
-  positionX Float    @default(0)
-  positionY Float    @default(0)
-  joinedAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, roomId])
-  @@index([roomId])
-  @@index([userId])
 }
 
 model Message {
@@ -85,26 +16,24 @@ model Message {
   isPrivate   Boolean     @default(false)
   recipientId String?
   createdAt   DateTime    @default(now())
-
-  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  Room        Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  User        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
   @@index([senderId])
 }
 
 model Notebook {
-  id          String   @id @default(uuid())
-  ownerId     String
-  title       String
-  description String?
-  tags        String[]
-  isShared    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  owner User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  pages NotebookPage[]
+  id           String         @id @default(uuid())
+  ownerId      String
+  title        String
+  description  String?
+  tags         String[]
+  isShared     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  User         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  NotebookPage NotebookPage[]
 
   @@index([ownerId])
 }
@@ -117,11 +46,38 @@ model NotebookPage {
   pdfAssetId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  notebook Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  Notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
 
   @@unique([notebookId, pageNumber])
   @@index([notebookId])
+}
+
+model Room {
+  id         String       @id @default(uuid())
+  name       String
+  type       RoomType
+  maxUsers   Int          @default(50)
+  mapData    Json
+  createdAt  DateTime     @default(now())
+  Message    Message[]
+  RoomMember RoomMember[]
+
+  @@index([type])
+}
+
+model RoomMember {
+  id        String   @id @default(uuid())
+  userId    String
+  roomId    String
+  positionX Float    @default(0)
+  positionY Float    @default(0)
+  joinedAt  DateTime @default(now())
+  Room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+  @@index([userId])
 }
 
 model Session {
@@ -132,32 +88,47 @@ model Session {
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
   @@index([refreshToken])
+  @@index([userId])
 }
 
-enum MessageType {
-  TEXT
-  SYSTEM
-  NOTIFICATION
+model User {
+  id                                 String       @id @default(uuid())
+  email                              String       @unique
+  username                           String       @unique
+  passwordHash                       String
+  displayName                        String?
+  avatarUrl                          String?
+  avatarConfig                       Json?
+  status                             UserStatus   @default(OFFLINE)
+  lastLoginAt                        DateTime?
+  createdAt                          DateTime     @default(now())
+  updatedAt                          DateTime     @updatedAt
+  Message                            Message[]
+  Notebook                           Notebook[]
+  RoomMember                         RoomMember[]
+  Session                            Session[]
+  VoiceCall_VoiceCall_calleeIdToUser VoiceCall[]  @relation("VoiceCall_calleeIdToUser")
+  VoiceCall_VoiceCall_callerIdToUser VoiceCall[]  @relation("VoiceCall_callerIdToUser")
+
+  @@index([email])
+  @@index([status])
 }
 
 model VoiceCall {
-  id        String     @id @default(uuid())
-  callerId  String
-  calleeId  String
-  status    CallStatus @default(INITIATED)
-  startedAt DateTime   @default(now())
-  endedAt   DateTime?
+  id                            String     @id @default(uuid())
+  callerId                      String
+  calleeId                      String
+  status                        CallStatus @default(INITIATED)
+  startedAt                     DateTime   @default(now())
+  endedAt                       DateTime?
+  User_VoiceCall_calleeIdToUser User       @relation("VoiceCall_calleeIdToUser", fields: [calleeId], references: [id], onDelete: Cascade)
+  User_VoiceCall_callerIdToUser User       @relation("VoiceCall_callerIdToUser", fields: [callerId], references: [id], onDelete: Cascade)
 
-  caller User @relation("caller", fields: [callerId], references: [id], onDelete: Cascade)
-  callee User @relation("callee", fields: [calleeId], references: [id], onDelete: Cascade)
-
-  @@index([callerId])
   @@index([calleeId])
+  @@index([callerId])
 }
 
 enum CallStatus {
@@ -166,4 +137,24 @@ enum CallStatus {
   ACTIVE
   ENDED
   REJECTED
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  NOTIFICATION
+}
+
+enum RoomType {
+  CLASSROOM
+  GALLERY
+  PARK
+  CUSTOM
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
 }

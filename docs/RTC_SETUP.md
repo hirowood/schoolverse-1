@@ -27,6 +27,9 @@ Phase 2 で WebRTC ベースの音声・ビデオ会議を本格導入するた�
 - `MEDIASOUP_ANNOUNCED_IP=xxx.xxx.xxx.xxx` (公開IP)
 - `MEDIASOUP_MIN_PORT=40000`
 - `MEDIASOUP_MAX_PORT=49999`
+- `MEDIASOUP_TURN_URIS=turn:turn.example.com:3478` (カンマ区切りで複数指定可)
+- `MEDIASOUP_TURN_USERNAME=turn-user`
+- `MEDIASOUP_TURN_PASSWORD=turn-pass`
 
 ## 4. mediasoup ワーカー挙動
 
@@ -41,10 +44,11 @@ Phase 2 で WebRTC ベースの音声・ビデオ会議を本格導入するた�
 
 > 現状の `src/lib/rtc/rtcManager.ts` は P2P 前提です。mediasoup 版では Device 設定やサブスクを扱う専用マネージャー実装が必要になります。
 
+フロントエンドでは `src/lib/rtc/mediasoupClient.ts` が mediasoup-client と Socket.io を仲介し、接続エラー・Producer 断をイベントとして通知します。`VoicePanel` からはこれらイベントを購読し、UI のストリーム更新やエラーメッセージ表示を行います。
+
 ## 6. 次ステップ
 
 - TURN サーバーの導入 (coturn 等)
 - 認証 / トークン検証 (声チャネルへの権限管理)
 - 映像 (Video) 用の codec / Simulcast 設定
 - 負荷テスト (20人同時通話) & モニタリング指標の整備
-

@@ -83,12 +83,11 @@ const makeMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   type: overrides.type ?? 'TEXT',
   recipientId: overrides.recipientId ?? null,
   createdAt: overrides.createdAt ?? new Date('2024-02-01T10:00:00Z').toISOString(),
-  sender:
-    overrides.sender ?? ({
-      id: overrides.senderId ?? 'user-1',
-      displayName: overrides.sender?.displayName ?? 'Alice Example',
-      avatarUrl: null,
-    } as ChatMessage['sender']),
+  sender: overrides.sender ?? {
+    id: overrides.senderId ?? 'user-1',
+    displayName: 'Alice Example',
+    avatarUrl: null,
+  },
   receipts: overrides.receipts,
 });
 

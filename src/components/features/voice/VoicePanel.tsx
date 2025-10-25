@@ -1,12 +1,12 @@
-“use client”;
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { createRTCManager } from "@/lib/rtc";
-import type { RTCManager } from "@/lib/rtc/rtcManager";
-import { MediasoupClient } from "@/lib/rtc/mediasoupClient";
-import { getSocket } from "@/lib/socket/socketClient";
-import { useAuthStore } from "@/store/authStore";
-import type { VoiceUserId } from "@/types/rtc";
+import { useEffect, useMemo, useState } from 'react';
+import { createRTCManager } from '@/lib/rtc';
+import type { RTCManager } from '@/lib/rtc/rtcManager';
+import { MediasoupClient } from '@/lib/rtc/mediasoupClient';
+import { getSocket } from '@/lib/socket/socketClient';
+import { useAuthStore } from '@/store/authStore';
+import type { VoiceUserId } from '@/types/rtc';
 
 type VoicePanelProps = {
   roomId: string | null;
@@ -33,36 +33,36 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
     const client = new MediasoupClient({ socket });
     setSfuClient(client);
 
-    const unsubscribeRemoteTrack = client.on("remote-track", ({ userId, stream }) => {
+    const unsubscribeRemoteTrack = client.on('remote-track', ({ userId, stream }) => {
       attachRemoteStream(userId, stream);
     });
 
-    const unsubscribeProducerClosed = client.on("producer-closed", ({ consumerId, userId }) => {
+    const unsubscribeProducerClosed = client.on('producer-closed', ({ userId }) => {
       if (userId) {
         detachRemoteStream(userId);
       }
     });
 
-    const unsubscribeClientError = client.on("error", ({ error: rtcError }) => {
-      console.error("[VoicePanel] mediasoup error", rtcError);
+    const unsubscribeClientError = client.on('error', ({ error: rtcError }) => {
+      console.error('[VoicePanel] mediasoup error', rtcError);
       setError(rtcError.message);
     });
 
-    const unsubscribeTrack = manager.on("remote-track", ({ userId, stream }) => {
+    const unsubscribeTrack = manager.on('remote-track', ({ userId, stream }) => {
       attachRemoteStream(userId, stream);
     });
 
-    const unsubscribeParticipantLeft = manager.on("participant-left", ({ userId }) => {
+    const unsubscribeParticipantLeft = manager.on('participant-left', ({ userId }) => {
       detachRemoteStream(userId);
       setParticipants((prev) => prev.filter((participant) => participant.userId !== userId));
     });
 
-    const unsubscribeLocalStream = manager.on("local-stream", (stream) => {
+    const unsubscribeLocalStream = manager.on('local-stream', (stream) => {
       attachLocalStream(stream);
     });
 
-    const unsubscribeError = manager.on("error", ({ error: rtcError }) => {
-      console.error("[VoicePanel] rtc error", rtcError);
+    const unsubscribeError = manager.on('error', ({ error: rtcError }) => {
+      console.error('[VoicePanel] rtc error', rtcError);
       setError(rtcError.message);
     });
 
@@ -97,22 +97,22 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
         setError(null);
       })
       .catch((joinError) => {
-        console.error("[VoicePanel] failed to join voice room", joinError);
-        setError(joinError instanceof Error ? joinError.message : "Failed to join voice room");
+        console.error('[VoicePanel] failed to join voice room', joinError);
+        setError(joinError instanceof Error ? joinError.message : 'Failed to join voice room');
       });
 
     const setupSfu = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         attachLocalStream(stream);
-        await sfuClient.joinRoom({ roomId, userId: authUser.id, stream });
+        await sfuClient.joinRoom({ roomId, userId: authUser.id, audioStream: stream });
       } catch (sfuError) {
-        console.error("[VoicePanel] mediasoup join failed", sfuError);
-        setError(sfuError instanceof Error ? sfuError.message : "Failed to initialize SFU");
+        console.error('[VoicePanel] mediasoup join failed', sfuError);
+        setError(sfuError instanceof Error ? sfuError.message : 'Failed to initialize SFU');
       }
     };
 
-    setupSfu().catch((error) => console.error("[VoicePanel] setupSfu error", error));
+    setupSfu().catch((error) => console.error('[VoicePanel] setupSfu error', error));
 
     const handleUserJoined = (data: { roomId: string; userId: VoiceUserId; displayName?: string | null }) => {
       if (data.roomId !== roomId) return;
@@ -137,17 +137,17 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
       setParticipants((prev) => prev.filter((participant) => participant.userId !== data.userId));
     };
 
-    socket.on("voice:userJoined", handleUserJoined);
-    socket.on("voice:participants", handleParticipants);
-    socket.on("voice:userLeft", handleUserLeft);
+    socket.on('voice:userJoined', handleUserJoined);
+    socket.on('voice:participants', handleParticipants);
+    socket.on('voice:userLeft', handleUserLeft);
 
     return () => {
       rtcManager.leaveRoom();
       sfuClient.leaveRoom();
       setIsConnected(false);
-      socket.off("voice:userJoined", handleUserJoined);
-      socket.off("voice:participants", handleParticipants);
-      socket.off("voice:userLeft", handleUserLeft);
+      socket.off('voice:userJoined', handleUserJoined);
+      socket.off('voice:participants', handleParticipants);
+      socket.off('voice:userLeft', handleUserLeft);
       setParticipants([]);
       detachLocalStream();
       detachAllRemoteStreams();
@@ -160,8 +160,8 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
       await rtcManager.toggleMute(!isMuted);
       setIsMuted((prev) => !prev);
     } catch (toggleError) {
-      console.error("[VoicePanel] toggle mute error", toggleError);
-      setError(toggleError instanceof Error ? toggleError.message : "Failed to toggle mute");
+      console.error('[VoicePanel] toggle mute error', toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : 'Failed to toggle mute');
     }
   };
 
@@ -175,7 +175,7 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
         <div>
           <h3 className="text-sm font-semibold text-slate-800">音声チャネル</h3>
           <p className="text-xs text-slate-500">
-            {roomId ? `ルーム: ${roomId}` : "参加するルームを選択してください"}
+            {roomId ? `ルーム: ${roomId}` : '参加するルームを選択してください'}
           </p>
         </div>
         <button
@@ -184,11 +184,11 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
           disabled={!isConnected}
           className={`rounded-md px-3 py-1 text-xs font-semibold ${
             isMuted
-              ? "bg-rose-500 text-white hover:bg-rose-600"
-              : "bg-blue-600 text-white hover:bg-blue-700"
+              ? 'bg-rose-500 text-white hover:bg-rose-600'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
           } disabled:cursor-not-allowed disabled:opacity-60`}
         >
-          {isMuted ? "ミュート解除" : "ミュート"}
+          {isMuted ? 'ミュート解除' : 'ミュート'}
         </button>
       </header>
 
@@ -227,14 +227,14 @@ export default function VoicePanel({ roomId }: VoicePanelProps) {
 }
 
 function attachLocalStream(stream: MediaStream) {
-  const element = document.getElementById("local-voice-audio") as HTMLAudioElement | null;
+  const element = document.getElementById('local-voice-audio') as HTMLAudioElement | null;
   if (element) {
     element.srcObject = stream;
   }
 }
 
 function detachLocalStream() {
-  const element = document.getElementById("local-voice-audio") as HTMLAudioElement | null;
+  const element = document.getElementById('local-voice-audio') as HTMLAudioElement | null;
   if (element) {
     element.srcObject = null;
   }
@@ -244,7 +244,7 @@ function attachRemoteStream(userId: VoiceUserId, stream: MediaStream) {
   const element = document.getElementById(`remote-voice-${userId}`) as HTMLAudioElement | null;
   if (element) {
     element.srcObject = stream;
-    element.classList.remove("hidden");
+    element.classList.remove('hidden');
   }
 }
 
@@ -252,7 +252,7 @@ function detachRemoteStream(userId: VoiceUserId) {
   const element = document.getElementById(`remote-voice-${userId}`) as HTMLAudioElement | null;
   if (element) {
     element.srcObject = null;
-    element.classList.add("hidden");
+    element.classList.add('hidden');
   }
 }
 
@@ -260,6 +260,6 @@ function detachAllRemoteStreams() {
   const elements = document.querySelectorAll<HTMLAudioElement>('[id^="remote-voice-"]');
   elements.forEach((element) => {
     element.srcObject = null;
-    element.classList.add("hidden");
+    element.classList.add('hidden');
   });
 }

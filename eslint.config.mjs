@@ -36,5 +36,16 @@ export default [
         project: false,
       },
     },
+    rules: {
+      ...(cfg.rules || {}),
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
   })),
 ];

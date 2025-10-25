@@ -1,183 +1,463 @@
-import { createServer } from "http";
-import { Server } from "socket.io";
-import {
-  createWorker,
-  type Worker,
-  type Router,
-  type WebRtcTransport,
-  type RtpCapabilities,
-  type Producer,
-  type Consumer,
-} from "mediasoup";
-import type { MediasoupConfig } from "./mediasoupConfig";
-import { createMediasoupConfig, createTransportOptions } from "./mediasoupConfig";
+/**
+ * EduVerse Phase 2: mediasoup SFU Server (改善版)
+ * 
+ * ✅ audio/video/screen に対応
+ * ✅ イベント名を定数化
+ * ✅ Worker の複数起動でロードバランシング
+ * ✅ 4層エラーハンドリング
+ */
 
+import { createServer } from 'http';
+import { Server, type Socket } from 'socket.io';
+import * as mediasoup from 'mediasoup';
+import type { MediasoupConfig } from './mediasoupConfig';
+import { createMediasoupConfig, createTransportOptions } from './mediasoupConfig';
+
+// ━━━ mediasoup の型定義 ━━━
+type Worker = mediasoup.types.Worker;
+type Router = mediasoup.types.Router;
+type WebRtcTransport = mediasoup.types.WebRtcTransport;
+type RtpCapabilities = mediasoup.types.RtpCapabilities;
+type Producer = mediasoup.types.Producer;
+type Consumer = mediasoup.types.Consumer;
+
+// ━━━ 環境変数 ━━━
 const PORT = Number(process.env.MEDIASOUP_PORT || 4001);
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const WORKER_COUNT = Number(process.env.MEDIASOUP_WORKER_COUNT || 4);
 
+// ━━━ イベント定数(サーバー側でも定義) ━━━
+const MEDIASOUP_EVENTS = {
+  JOIN: 'voice:join',
+  CREATE_TRANSPORT: 'voice:createTransport',
+  CONNECT_TRANSPORT: 'voice:connectTransport',
+  PRODUCE: 'voice:produce',
+  CONSUME: 'voice:consume',
+  USER_JOINED: 'voice:userJoined',
+  USER_LEFT: 'voice:userLeft',
+  NEW_PRODUCER: 'voice:newProducer',
+  PRODUCER_CLOSED: 'voice:producerClosed',
+} as const;
+
+// ━━━ Worker のプール ━━━
+const workers: Worker[] = [];
+let workerIndex = 0;
+
+// ━━━ Room 管理 ━━━
 const rooms = new Map<string, VoiceRoom>();
 
+/**
+ * ✅ メイン起動処理
+ */
 async function run() {
   const config = createMediasoupConfig();
-  const worker = await createMediasoupWorker(config);
-  const router = await worker.createRouter(config.router);
+
+  // ━━━ 複数 Worker を起動してロードバランシング ━━━
+  console.log(`[mediasoup] Starting ${WORKER_COUNT} workers...`);
+  for (let i = 0; i < WORKER_COUNT; i++) {
+    const worker = await createMediasoupWorker(config);
+    workers.push(worker);
+    console.log(`[mediasoup] Worker ${i + 1}/${WORKER_COUNT} ready`);
+  }
 
   const httpServer = createServer();
   const io = new Server(httpServer, {
     cors: {
       origin: CORS_ORIGIN,
-      methods: ["GET", "POST"],
+      methods: ['GET', 'POST'],
     },
   });
 
-  io.on("connection", (socket) => {
+  io.on('connection', (socket) => {
     let joinedRoomId: string | null = null;
     let peerId: string | null = null;
 
-    socket.on("voice:join", async (payload: { roomId?: string; userId?: string; rtpCapabilities?: RtpCapabilities }) => {
-      if (!payload?.roomId || !payload?.userId || !payload?.rtpCapabilities) return;
-      const { roomId, userId, rtpCapabilities } = payload;
-      peerId = userId;
-      joinedRoomId = roomId;
+    console.log(`[mediasoup] Client connected: ${socket.id}`);
 
-      const room = await getOrCreateRoom(roomId, router);
-      room.peers.set(userId, new PeerContext(rtpCapabilities));
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ Room 参加
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on(
+      MEDIASOUP_EVENTS.JOIN,
+      async (payload: any, callback?: (response: any) => void) => {
+        try {
+          // ━━━ バリデーション ━━━
+          if (!payload?.roomId || !payload?.userId || !payload?.rtpCapabilities) {
+            console.error('[mediasoup] Invalid join payload:', payload);
+            callback?.({ error: 'invalid_payload' });
+            return;
+          }
 
-      socket.join(roomId);
-      socket.emit("voice:joined", { roomId, routerRtpCapabilities: router.rtpCapabilities });
-      socket.to(roomId).emit("voice:userJoined", { roomId, userId });
-    });
+          const { roomId, userId, rtpCapabilities } = payload;
+          peerId = userId;
+          joinedRoomId = roomId;
 
-    socket.on("voice:createTransport", async (_, callback: (response: TransportInfoResponse | ErrorResponse) => void) => {
-      if (!joinedRoomId || !peerId) return callback({ error: "not_joined" });
-      const room = rooms.get(joinedRoomId);
-      if (!room) return callback({ error: "room_not_found" });
+          // ━━━ Room を取得 or 作成 ━━━
+          const room = await getOrCreateRoom(roomId);
+          room.peers.set(userId, new PeerContext(rtpCapabilities));
 
+          socket.join(roomId);
+          callback?.({
+            roomId,
+            routerRtpCapabilities: room.router.rtpCapabilities,
+          });
+
+          // ━━━ 既存参加者に通知 ━━━
+          socket.to(roomId).emit(MEDIASOUP_EVENTS.USER_JOINED, { roomId, userId });
+
+          console.log(`[mediasoup] User ${userId} joined room ${roomId}`);
+        } catch (error) {
+          console.error('[mediasoup] Join failed:', error);
+          callback?.({ error: 'join_failed' });
+        }
+      }
+    );
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ Transport 作成
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on(MEDIASOUP_EVENTS.CREATE_TRANSPORT, async (_, callback: (response: any) => void) => {
       try {
-        const transport = await room.router.createWebRtcTransport(createTransportOptions(config));
-        const info: TransportInfoResponse = {
+        if (!joinedRoomId || !peerId) {
+          callback({ error: 'not_joined' });
+          return;
+        }
+
+        const room = rooms.get(joinedRoomId);
+        if (!room) {
+          callback({ error: 'room_not_found' });
+          return;
+        }
+
+        const transport = await room.router.createWebRtcTransport(
+          createTransportOptions(config)
+        );
+
+        const info = {
           id: transport.id,
           iceParameters: transport.iceParameters,
           iceCandidates: transport.iceCandidates,
           dtlsParameters: transport.dtlsParameters,
         };
+
         room.getPeer(peerId).transports.set(transport.id, transport);
         callback(info);
+
+        console.log(`[mediasoup] Transport created for user ${peerId}: ${transport.id}`);
       } catch (error) {
-        console.error("[mediasoup] createTransport failed", error);
-        callback({ error: "create_transport_failed" });
+        console.error('[mediasoup] Create transport failed:', error);
+        callback({ error: 'create_transport_failed' });
       }
     });
 
-    socket.on("voice:connectTransport", async (payload: { transportId?: string; dtlsParameters?: unknown }, callback: (response: { error?: string }) => void) => {
-      if (!payload?.transportId || !payload?.dtlsParameters || !joinedRoomId || !peerId) return callback({ error: "invalid_payload" });
-      const room = rooms.get(joinedRoomId);
-      if (!room) return callback({ error: "room_not_found" });
-      const transport = room.getPeer(peerId).transports.get(payload.transportId);
-      if (!transport) return callback({ error: "transport_not_found" });
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ Transport 接続
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on(MEDIASOUP_EVENTS.CONNECT_TRANSPORT, async (payload: any, callback: (response: any) => void) => {
       try {
-        await transport.connect({ dtlsParameters: payload.dtlsParameters as any });
+        if (!payload?.transportId || !payload?.dtlsParameters || !joinedRoomId || !peerId) {
+          callback({ error: 'invalid_payload' });
+          return;
+        }
+
+        const room = rooms.get(joinedRoomId);
+        if (!room) {
+          callback({ error: 'room_not_found' });
+          return;
+        }
+
+        const transport = room.getPeer(peerId).transports.get(payload.transportId);
+        if (!transport) {
+          callback({ error: 'transport_not_found' });
+          return;
+        }
+
+        await transport.connect({ dtlsParameters: payload.dtlsParameters });
         callback({});
+
+        console.log(`[mediasoup] Transport connected: ${payload.transportId}`);
       } catch (error) {
-        console.error("[mediasoup] connectTransport failed", error);
-        callback({ error: "connect_transport_failed" });
+        console.error('[mediasoup] Connect transport failed:', error);
+        callback({ error: 'connect_transport_failed' });
       }
     });
 
-    socket.on("voice:produce", async (payload: { transportId?: string; kind?: "audio" | "video"; rtpParameters?: any }, callback: (response: { id?: string; error?: string }) => void) => {
-      if (!payload?.transportId || !payload?.kind || !payload?.rtpParameters || !joinedRoomId || !peerId) return callback({ error: "invalid_payload" });
-      const room = rooms.get(joinedRoomId);
-      if (!room) return callback({ error: "room_not_found" });
-      const transport = room.getPeer(peerId).transports.get(payload.transportId);
-      if (!transport) return callback({ error: "transport_not_found" });
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ メディア送信開始 (audio/video/screen 対応)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on(MEDIASOUP_EVENTS.PRODUCE, async (payload: any, callback: (response: any) => void) => {
       try {
-        const producer = await transport.produce({ kind: payload.kind, rtpParameters: payload.rtpParameters });
+        // ━━━ バリデーション ━━━
+        if (!payload?.transportId || !payload?.kind || !payload?.rtpParameters || !joinedRoomId || !peerId) {
+          callback({ error: 'invalid_payload' });
+          return;
+        }
+
+        const room = rooms.get(joinedRoomId);
+        if (!room) {
+          callback({ error: 'room_not_found' });
+          return;
+        }
+
+        const transport = room.getPeer(peerId).transports.get(payload.transportId);
+        if (!transport) {
+          callback({ error: 'transport_not_found' });
+          return;
+        }
+
+        // ━━━ kind に応じた処理 ━━━
+        const { kind, rtpParameters } = payload;
+        const isScreen = kind === 'screen';
+
+        // 画面共有の場合は video として扱うが appData でフラグを立てる
+        const produceKind = isScreen ? 'video' : kind;
+        const appData = isScreen ? { isScreen: true, originalKind: kind } : { originalKind: kind };
+
+        const producer = await transport.produce({
+          kind: produceKind,
+          rtpParameters,
+          appData,
+        });
+
         room.getPeer(peerId).producers.set(producer.id, producer);
-        producer.on("transportclose", () => {
-          room.getPeer(peerId).producers.delete(producer.id);
+
+        // ━━━ Producer が閉じられたときのクリーンアップ ━━━
+        producer.on('transportclose', () => {
+          const peer = room.peers.get(peerId!);
+          if (peer) {
+            peer.producers.delete(producer.id);
+          }
+          console.log(`[mediasoup] Producer ${producer.id} closed (transport close)`);
         });
-        broadcastNewProducer(io, joinedRoomId, peerId, producer.id, payload.kind);
+
+        // ━━━ 他の参加者に通知 ━━━
+        notifyNewProducer(socket, joinedRoomId, peerId, producer.id, kind);
+
         callback({ id: producer.id });
+        console.log(`[mediasoup] User ${peerId} started producing ${kind}`);
       } catch (error) {
-        console.error("[mediasoup] produce failed", error);
-        callback({ error: "produce_failed" });
+        console.error('[mediasoup] Produce failed:', error);
+        callback({ error: 'produce_failed' });
       }
     });
 
-    socket.on("voice:consume", async (payload: { transportId?: string; producerId?: string; rtpCapabilities?: RtpCapabilities }, callback: (response: { id?: string; kind?: "audio" | "video"; rtpParameters?: any; error?: string }) => void) => {
-      if (!payload?.transportId || !payload?.producerId || !payload?.rtpCapabilities || !joinedRoomId || !peerId) {
-        return callback({ error: "invalid_payload" });
-      }
-      const room = rooms.get(joinedRoomId);
-      if (!room) return callback({ error: "room_not_found" });
-      const transport = room.getPeer(peerId).transports.get(payload.transportId);
-      if (!transport) return callback({ error: "transport_not_found" });
-      const producer = findProducer(room, payload.producerId);
-      if (!producer) return callback({ error: "producer_not_found" });
-      const rtpCapabilities = payload.rtpCapabilities;
-      if (!router.canConsume({ producerId: producer.id, rtpCapabilities })) {
-        return callback({ error: "cannot_consume" });
-      }
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ 他ユーザーのメディアを受信
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on(MEDIASOUP_EVENTS.CONSUME, async (payload: any, callback: (response: any) => void) => {
       try {
-        const consumer = await transport.consume({ producerId: producer.id, rtpCapabilities, paused: false });
+        if (!payload?.transportId || !payload?.producerId || !payload?.rtpCapabilities || !joinedRoomId || !peerId) {
+          callback({ error: 'invalid_payload' });
+          return;
+        }
+
+        const room = rooms.get(joinedRoomId);
+        if (!room) {
+          callback({ error: 'room_not_found' });
+          return;
+        }
+
+        const transport = room.getPeer(peerId).transports.get(payload.transportId);
+        if (!transport) {
+          callback({ error: 'transport_not_found' });
+          return;
+        }
+
+        const producer = findProducer(room, payload.producerId);
+        if (!producer) {
+          callback({ error: 'producer_not_found' });
+          return;
+        }
+
+        const rtpCapabilities = payload.rtpCapabilities;
+        if (!room.router.canConsume({ producerId: producer.id, rtpCapabilities })) {
+          callback({ error: 'cannot_consume' });
+          return;
+        }
+
+        const consumer = await transport.consume({
+          producerId: producer.id,
+          rtpCapabilities,
+          paused: false,
+        });
+
         room.getPeer(peerId).consumers.set(consumer.id, consumer);
-        consumer.on("transportclose", () => {
-          room.getPeer(peerId).consumers.delete(consumer.id);
+
+        // ━━━ Consumer のクリーンアップ ━━━
+        consumer.on('transportclose', () => {
+          const peer = room.peers.get(peerId!);
+          if (peer) {
+            peer.consumers.delete(consumer.id);
+          }
         });
-        consumer.on("producerclose", () => {
-          room.getPeer(peerId).consumers.delete(consumer.id);
-          socket.emit("voice:producerClosed", { consumerId: consumer.id });
+
+        consumer.on('producerclose', () => {
+          const peer = room.peers.get(peerId!);
+          if (peer) {
+            peer.consumers.delete(consumer.id);
+          }
+          const owner = findProducerOwner(room, producer.id);
+          socket.emit(MEDIASOUP_EVENTS.PRODUCER_CLOSED, {
+            consumerId: consumer.id,
+            userId: owner,
+          });
         });
-        callback({ id: consumer.id, kind: consumer.kind, rtpParameters: consumer.rtpParameters });
+
+        callback({
+          id: consumer.id,
+          kind: consumer.kind,
+          rtpParameters: consumer.rtpParameters,
+        });
+
+        console.log(`[mediasoup] User ${peerId} consuming from producer ${payload.producerId}`);
       } catch (error) {
-        console.error("[mediasoup] consume failed", error);
-        callback({ error: "consume_failed" });
+        console.error('[mediasoup] Consume failed:', error);
+        callback({ error: 'consume_failed' });
       }
     });
 
-    socket.on("disconnect", () => {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ 切断処理
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    socket.on('disconnect', () => {
       if (!joinedRoomId || !peerId) return;
+
       const room = rooms.get(joinedRoomId);
       if (!room) return;
-      const peer = room.getPeer(peerId);
-      peer?.close();
-      room.peers.delete(peerId);
-      socket.to(joinedRoomId).emit("voice:userLeft", { roomId: joinedRoomId, userId: peerId });
+
+      // ━━━ Peer のクリーンアップ ━━━
+      const peer = room.peers.get(peerId);
+      if (peer) {
+        peer.close();
+        room.peers.delete(peerId);
+      }
+
+      // ━━━ 他の参加者に通知 ━━━
+      socket.to(joinedRoomId).emit(MEDIASOUP_EVENTS.USER_LEFT, {
+        roomId: joinedRoomId,
+        userId: peerId,
+      });
+
+      // ━━━ Room が空になったら削除 ━━━
       if (room.peers.size === 0) {
         room.close();
         rooms.delete(joinedRoomId);
+        console.log(`[mediasoup] Room ${joinedRoomId} closed (empty)`);
       }
+
+      console.log(`[mediasoup] User ${peerId} left room ${joinedRoomId}`);
     });
   });
 
   httpServer.listen(PORT, () => {
-    // eslint-disable-next-line no-console
     console.log(`[mediasoup] SFU listening on :${PORT}`);
   });
 }
 
-run().catch((error) => {
-  console.error("[mediasoup] fatal error", error);
-  process.exit(1);
-});
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ヘルパー関数
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * ✅ mediasoup Worker を作成
+ */
 async function createMediasoupWorker(config: MediasoupConfig): Promise<Worker> {
-  const worker = await createWorker({
-    logLevel: config.worker.logLevel,
-    logTags: config.worker.logTags,
+  const worker = await mediasoup.createWorker({
+    logLevel: config.worker.logLevel as any,
+    logTags: config.worker.logTags as any,
     rtcMinPort: config.worker.rtcMinPort,
     rtcMaxPort: config.worker.rtcMaxPort,
   });
-  worker.on("died", () => {
-    console.error("[mediasoup] worker died, exiting in 2 seconds...");
+
+  worker.on('died', () => {
+    console.error('[mediasoup] Worker died, exiting in 2 seconds...');
     setTimeout(() => process.exit(1), 2000);
   });
+
   return worker;
 }
 
+/**
+ * ✅ Room を取得 or 作成(ラウンドロビンでWorkerを振り分け)
+ */
+async function getOrCreateRoom(roomId: string): Promise<VoiceRoom> {
+  const existing = rooms.get(roomId);
+  if (existing) return existing;
+
+  // ━━━ Worker をラウンドロビンで選択 ━━━
+  const worker = workers[workerIndex];
+  const currentWorkerIndex = workerIndex;
+  workerIndex = (workerIndex + 1) % workers.length;
+
+  const config = createMediasoupConfig();
+  const router = await worker.createRouter({
+    mediaCodecs: config.router.mediaCodecs as any,
+  });
+
+  const room = new VoiceRoom(router);
+  rooms.set(roomId, room);
+
+  console.log(`[mediasoup] Room ${roomId} created on Worker ${currentWorkerIndex}`);
+  return room;
+}
+
+/**
+ * ✅ Producer とその所有者を検索
+ */
+function findProducerInfo(room: VoiceRoom, producerId: string) {
+  for (const [userId, peer] of room.peers.entries()) {
+    const producer = peer.producers.get(producerId);
+    if (producer) {
+      return { userId, producer };
+    }
+  }
+  return null;
+}
+
+/**
+ * ✅ Producer を検索
+ */
+function findProducer(room: VoiceRoom, producerId: string): Producer | null {
+  return findProducerInfo(room, producerId)?.producer ?? null;
+}
+
+/**
+ * ✅ Producer の所有者を検索
+ */
+function findProducerOwner(room: VoiceRoom, producerId: string): string | null {
+  return findProducerInfo(room, producerId)?.userId ?? null;
+}
+
+/**
+ * ✅ 新しい Producer を他の参加者に通知
+ */
+function notifyNewProducer(
+  socket: Socket,
+  roomId: string,
+  userId: string,
+  producerId: string,
+  kind: string
+) {
+  socket.to(roomId).emit(MEDIASOUP_EVENTS.NEW_PRODUCER, {
+    roomId,
+    userId,
+    producerId,
+    kind,
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// クラス定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ✅ VoiceRoom クラス
+ * 1つの Room を表す
+ */
 class VoiceRoom {
-  constructor(public readonly router: Router) {}
   public readonly peers = new Map<string, PeerContext>();
+
+  constructor(public readonly router: Router) {}
 
   getPeer(userId: string): PeerContext {
     const context = this.peers.get(userId);
@@ -195,6 +475,10 @@ class VoiceRoom {
   }
 }
 
+/**
+ * ✅ PeerContext クラス
+ * 1人のユーザーの Transport / Producer / Consumer を管理
+ */
 class PeerContext {
   public readonly transports = new Map<string, WebRtcTransport>();
   public readonly producers = new Map<string, Producer>();
@@ -212,32 +496,8 @@ class PeerContext {
   }
 }
 
-async function getOrCreateRoom(roomId: string, router: Router) {
-  const existing = rooms.get(roomId);
-  if (existing) return existing;
-  const room = new VoiceRoom(router);
-  rooms.set(roomId, room);
-  return room;
-}
-
-function findProducer(room: VoiceRoom, producerId: string) {
-  for (const peer of room.peers.values()) {
-    if (peer.producers.has(producerId)) {
-      return peer.producers.get(producerId)!;
-    }
-  }
-  return null;
-}
-
-function broadcastNewProducer(io: Server, roomId: string, userId: string, producerId: string, kind: "audio" | "video") {
-  io.to(roomId).emit("voice:newProducer", { roomId, userId, producerId, kind });
-}
-
-type TransportInfoResponse = {
-  id: string;
-  iceParameters: any;
-  iceCandidates: any;
-  dtlsParameters: any;
-};
-
-type ErrorResponse = { error: string };
+// ━━━ サーバー起動 ━━━
+run().catch((error) => {
+  console.error('[mediasoup] Fatal error:', error);
+  process.exit(1);
+});

@@ -46,6 +46,12 @@ export class UserRepository {
       orderBy: { lastLoginAt: 'desc' },
     });
   }
+
+  async findAll(): Promise<PrismaUser[]> {
+    return prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
 
 export const userRepository = new UserRepository();

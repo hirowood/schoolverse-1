@@ -64,11 +64,9 @@ export class RTCManager {
       this.listeners.set(event, new Set());
     }
     const set = this.listeners.get(event)!;
-    // @ts-expect-error - Set is typed as EventKey but we only call with matching listener
-    set.add(listener);
+    set.add(listener as Listener<EventKey>);
     return () => {
-      // @ts-expect-error - same reasoning as above
-      set.delete(listener);
+      set.delete(listener as Listener<EventKey>);
     };
   }
 
@@ -285,8 +283,7 @@ export class RTCManager {
     const listeners = this.listeners.get(event);
     if (!listeners) return;
     listeners.forEach((listener) => {
-      // @ts-expect-error - runtime dispatch, listener matches event type
-      listener(payload);
+      listener(payload as RTCManagerEventMap[T]);
     });
   }
 

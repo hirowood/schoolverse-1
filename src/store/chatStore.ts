@@ -135,8 +135,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set({ roomsStatus: 'error', roomsError: data.error ?? 'ROOMS_FETCH_FAILED' });
         return;
       }
-      const data = await parseJson<{ rooms: RoomSummary[] }>(response);
-      set({ rooms: data.rooms ?? [], roomsStatus: 'idle', roomsError: undefined });
+      const data = await parseJson<{ data: { rooms: RoomSummary[] } }>(response);
+      set({ rooms: data.data?.rooms ?? [], roomsStatus: 'idle', roomsError: undefined });
     } catch (error) {
       console.error('[chatStore] loadRooms error', error);
       set({ roomsStatus: 'error', roomsError: 'ROOMS_FETCH_FAILED' });
@@ -174,10 +174,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }));
         return;
       }
-      const data = await parseJson<{ items: ChatMessage[]; nextCursor: string | null; hasMore: boolean }>(response);
+      const data = await parseJson<{ data: { messages: ChatMessage[]; nextCursor: string | null; hasMore: boolean } }>(response);
       set((prev) => ({
-        messages: { ...prev.messages, [roomId]: data.items ?? [] },
-        messageCursors: { ...prev.messageCursors, [roomId]: data.nextCursor ?? null },
+        messages: { ...prev.messages, [roomId]: data.data?.messages ?? [] },
+        messageCursors: { ...prev.messageCursors, [roomId]: data.data?.nextCursor ?? null },
         messageStatus: { ...prev.messageStatus, [roomId]: 'idle' },
       }));
     } catch (error) {
@@ -292,11 +292,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
-    const data = await parseJson<{ message: ChatMessage }>(response);
+    const data = await parseJson<{ data: { message: ChatMessage } }>(response);
     removeOptimisticMessage();
-    get().upsertMessage(roomId, data.message);
+    get().upsertMessage(roomId, data.data.message);
     const socket = getSocket();
-    socket.emit('chat:message:new', { roomId, userId: data.message.senderId, message: data.message });
+    socket.emit('chat:message:new', { roomId, userId: data.data.message.senderId, message: data.data.message });
   } catch (error) {
     console.error('[chatStore] sendMessage error', error);
     removeOptimisticMessage('MESSAGE_SEND_FAILED');
