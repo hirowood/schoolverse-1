@@ -1,34 +1,25 @@
 "use client";
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { useAuthBootstrap } from '@/hooks/useAuth';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  useAuthBootstrap();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore((state) => ({
-    isAuthenticated: state.isAuthenticated,
-    isLoading: state.isLoading,
-  }));
+  const status = useRequireAuth("/login");
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, isLoading, router]);
+    // Redirect is handled inside useRequireAuth
+  }, [status, router]);
 
-  if (!isAuthenticated && isLoading) {
+  if (status === "loading") {
     return (
       <div className="flex h-full items-center justify-center text-sm text-gray-500">
-        認証情報を確認しています…
+        認証状態を確認しています…
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (status === "unauthenticated") return null;
 
   return <>{children}</>;
 }
