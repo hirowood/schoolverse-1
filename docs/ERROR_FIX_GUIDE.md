@@ -12,7 +12,7 @@ Reactコンポーネント内で**エラーオブジェクト**を直接レン�
 
 ### エラーの原因
 
-1. **authStore.ts**: `error` プロパティにオブジェクト全体が保存される可能性があった
+1. **authStore.ts (DEPRECATED: NextAuth移行済み)**: `error` プロパティにオブジェクト全体が保存される可能性があった
 2. **コンポーネント**: エラーを `{error}` として直接JSXに埋め込んでいた
 3. **型チェック不足**: `error` の型が `string | null` であるべきところ、実際にはオブジェクトが入る場合があった
 
@@ -20,7 +20,7 @@ Reactコンポーネント内で**エラーオブジェクト**を直接レン�
 
 ## 🛠️ 実施した修正
 
-### 1. authStore.ts の改善
+### 1. authStore.ts の改善（DEPRECATED: NextAuth移行済みのため参照のみ）
 
 **修正内容**:
 - `extractErrorMessage` 関数を強化し、必ず文字列を返すように改善
@@ -297,7 +297,7 @@ object?
 
 修正したファイル一覧：
 
-1. `src/store/authStore.ts` - エラーハンドリングの強化
+1. `src/store/authStore.ts`（DEPRECATED） - エラーハンドリングの強化
 2. `src/components/ui/ErrorDisplay.tsx` - 新規作成
 3. `src/app/(auth)/login/page.tsx` - ErrorDisplay使用
 4. `src/app/(auth)/register/page.tsx` - ErrorDisplay使用

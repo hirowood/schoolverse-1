@@ -193,7 +193,7 @@ src/app
 ```
 
 ### 5.2 状態管理 (Zustand)
-- `src/store/authStore.ts`: cookie ベースのログイン状態。`login/signup/fetchMe/logout` はコメント付きで説明済み。  
+- `src/store/authStore.ts` (DEPRECATED: NextAuthに移行済み): cookie ベースのログイン状態。`login/signup/fetchMe/logout` はコメント付きで説明済み。  
 - 新規ストア:
   - `noteStore.ts`: 現在開いているノートのページ＆レイヤー状態。  
   - `assignmentStore.ts`: 課題一覧・ステータス。  

@@ -274,7 +274,7 @@ Schoolverse_1 システム
 │       └── Sidebar.tsx
 │
 ├── 3. 状態管理層 (stores/)
-│   ├── authStore.ts (Zustand)
+│   ├── authStore.ts (DEPRECATED: NextAuthに移行)
 │   ├── worldStore.ts
 │   ├── chatStore.ts
 │   └── voiceStore.ts
@@ -871,7 +871,7 @@ schoolverse_1/
 │   │       └── constants.ts
 │   │
 │   ├── stores/                   # Zustand状態管理
-│   │   ├── authStore.ts
+│   │   ├── authStore.ts（DEPRECATED）
 │   │   ├── worldStore.ts
 │   │   ├── chatStore.ts
 │   │   ├── voiceStore.ts
@@ -2379,7 +2379,7 @@ export function getSocketManager(): SocketManager {
 #### authStore - 認証状態
 
 ```typescript
-// stores/authStore.ts
+// stores/authStore.ts （DEPRECATED: NextAuthへ移行。useSession/useCurrentUserを利用）
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, UserStatus } from '@/types/user.types';
