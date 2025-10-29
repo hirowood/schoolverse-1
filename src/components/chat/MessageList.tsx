@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import { useChatStore, type ChatMessage } from '@/store/chatStore';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 type MessageListProps = {
   roomId: string;
@@ -27,7 +27,7 @@ type MessageListProps = {
 export default function MessageList({ roomId }: MessageListProps) {
   const messages = useChatStore((state) => state.messages[roomId] ?? []);
   const typing = useChatStore((state) => state.typing[roomId]?.users ?? {});
-  const user = useAuthStore((state) => state.user);
+  const { user } = useCurrentUser();
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
