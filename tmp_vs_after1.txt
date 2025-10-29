@@ -27,7 +27,7 @@ type PeerState = { x: number; y: number; displayName?: string };
 
 export default function VirtualSpace() {
   const keys = useKeyboard();
-  const { data: session } = useSession(); const user = (session?.user as any) ?? null;
+  const { user } = useAuthStore();
   const socket = useMemo(() => getSocket(), []);
   const peersRef = useRef<Map<string, PeerState>>(new Map());
   const [peersVersion, setPeersVersion] = useState(0);
