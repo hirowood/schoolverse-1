@@ -186,6 +186,15 @@ GET  /api/auth/socket-token     # RTサーバー用JWTを発行（15分TTL, sv_a
 
 旧エンドポイント（/api/auth/login|logout|refresh）は廃止しました。UIからは next-auth/react の `signIn` / `signOut` を利用してください。
 
+### E2E テスト（Playwright）向け設定
+
+```
+# 認証ミドルウェアをバイパス
+NEXT_PUBLIC_E2E=1 npm run test:e2e
+```
+
+テストでは `tests/playwright/utils/auth.ts` の `signInViaUI` を利用してUI経由でログインし、`/api/auth/socket-token` でRT用トークンCookie（sv_access_token）を発行します。
+
 Phase 2 (ビデオ会議), Phase 3 (課題), Phase 4 (カリキュラム), Phase 3.5/4.5 (ノート/OCR/AI) の API は順次追加されます。最新仕様は `docs/requirements.md` を参照してください。
 
 ---

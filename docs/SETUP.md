@@ -11,7 +11,9 @@
    ```
 2. 環境変数を設定
    - `.env.local`（フロントエンド）
-   - `NEXT_PUBLIC_SOCKET_URL=http://localhost:3001` 等
+   - Realtime: `NEXT_PUBLIC_SOCKET_URL=http://localhost:3001`
+   - NextAuth: `NEXTAUTH_SECRET=<強固なランダム文字列>`, `NEXTAUTH_URL=http://localhost:3000`
+   - E2E（任意）: `NEXT_PUBLIC_E2E=1` でミドルウェアの認証バイパス（Playwright実行時に利用）
 3. Dev用DB/Redis を起動（任意）
    ```bash
    docker compose -f docker-compose.dev.yml up -d db redis

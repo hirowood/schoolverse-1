@@ -75,10 +75,11 @@ vi.mock('@/hooks/useKeyboard', () => ({
   default: () => keyboardState,
 }));
 
-vi.mock('@/store/authStore', () => ({
+vi.mock('next-auth/react', () => ({
   __esModule: true,
+  useSession: () => ({ data: { user: authState.user }, status: 'authenticated' as const }),
+  getSession: async () => ({ user: authState.user }),
   __updateAuthUser: updateAuthUser,
-  useAuthStore: () => authState,
 }));
 
 vi.mock('@/lib/socket/socketClient', () => {
@@ -119,19 +120,17 @@ vi.mock('@/lib/socket/socketClient', () => {
 import VirtualSpace from '@/components/canvas/VirtualSpace';
 import * as FiberModule from '@react-three/fiber';
 import * as KeyboardModule from '@/hooks/useKeyboard';
-import * as AuthModule from '@/store/authStore';
+import * as NextAuthModule from 'next-auth/react';
 import * as SocketModule from '@/lib/socket/socketClient';
 type KeyboardTestHelpers = {
   __updateKeyboardState: typeof updateKeyboardState;
 };
-type AuthTestHelpers = {
-  __updateAuthUser: typeof updateAuthUser;
-};
+type AuthTestHelpers = { __updateAuthUser: typeof updateAuthUser };
 
 const fiberMock = (FiberModule as unknown as { __mock: FiberTestHelpers }).__mock;
 const socketHelpers = (SocketModule as unknown as { __socketMock: SocketTestHelpers }).__socketMock;
 const setKeyboard = (KeyboardModule as unknown as KeyboardTestHelpers).__updateKeyboardState;
-const setAuth = (AuthModule as unknown as AuthTestHelpers).__updateAuthUser;
+const setAuth = (NextAuthModule as unknown as AuthTestHelpers).__updateAuthUser;
 
 describe('VirtualSpace component (E2E-lite)', () => {
   let performanceSpy: ReturnType<typeof vi.spyOn>;
