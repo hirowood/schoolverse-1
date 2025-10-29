@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut, signIn } from 'next-auth/react';
 import type { SessionUser } from '@/types/session';
+import { hasRole } from '@/lib/auth/guards';
 // replaced authStore with NextAuth
 // useAuthBootstrap removed
 
@@ -35,6 +36,9 @@ export default function AppHeader() {
           {status === 'authenticated' ? (
             <>
               <span className="hidden text-gray-600 sm:inline">{displayName}</span>
+              {hasRole(user, 'admin') && (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">admin</span>
+              )}
               <button
                 onClick={handleLogout}
                 disabled={status === 'loading'}

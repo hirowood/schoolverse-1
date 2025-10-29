@@ -210,6 +210,8 @@ export class AuthService {
       email: user.email,
       username: user.username,
       displayName: user.displayName,
+      roles: user.roles,
+      permissions: user.permissions,
     };
 
     // トークン生成
@@ -247,6 +249,8 @@ export class AuthService {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         status: user.status,
+        roles: user.roles ?? null,
+        permissions: user.permissions ?? null,
       }),
       accessToken,
       refreshToken,
@@ -271,6 +275,8 @@ export class AuthService {
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       status: user.status,
+      roles: user.roles ?? null,
+      permissions: user.permissions ?? null,
     });
   }
 }

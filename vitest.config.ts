@@ -98,6 +98,7 @@ export default defineConfig({
       "@": resolve(__dirname, "src"),
       // @testsでtestsディレクトリを指す（@/testsではなく）
       "@tests": resolve(__dirname, "tests"),
+      canvas: resolve(__dirname, "tests/mocks/canvas.mock.ts"),
       // 注: canvasとfabricのvi.mock()でモック化される（vitest.setup.tsを参照）
     },
   },

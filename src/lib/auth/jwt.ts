@@ -15,6 +15,8 @@ export type AuthTokenPayload = JWTPayload & {
   email: string;
   username?: string;
   displayName?: string | null;
+  roles?: string[] | null;
+  permissions?: string[] | null;
 };
 
 export function signAccessToken(

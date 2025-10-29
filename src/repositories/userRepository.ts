@@ -28,6 +28,13 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { id } });
   }
 
+  // For future normalized design, this method name conveys intent that roles/permissions are included
+  async findWithRolesById(id: string): Promise<PrismaUser | null> {
+    // With array-columns, regular findUnique already includes roles/permissions
+    // If normalized later, replace with include on relations
+    return prisma.user.findUnique({ where: { id } });
+  }
+
   async update(id: string, data: UpdateUserInput): Promise<PrismaUser> {
     return prisma.user.update({ where: { id }, data });
   }

@@ -19,7 +19,6 @@ import type { SessionUser } from '@/types/session';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { MessageSquare, X, Minimize2, Maximize2 } from 'lucide-react';
-import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
 type ChatBoxProps = {
   roomId: string;

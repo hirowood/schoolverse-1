@@ -99,6 +99,8 @@ async function seedUsers() {
       passwordHash: '$2a$10$dummyhashfortesting1234567890', // ダミーハッシュ
       displayName: 'テストユーザー1',
       avatarUrl: null,
+      roles: ['admin', 'member'],
+      permissions: ['users:manage', 'rooms:manage', 'notebooks:manage', 'chat:moderate'],
     },
     {
       id: 'test-user-2',
@@ -107,46 +109,30 @@ async function seedUsers() {
       passwordHash: '$2a$10$dummyhashfortesting1234567890', // ダミーハッシュ
       displayName: 'テストユーザー2',
       avatarUrl: null,
+      roles: ['member'],
+      permissions: ['chat:read', 'chat:write', 'notebooks:edit'],
     },
   ];
   
   for (const user of testUsers) {
-    // IDで既存チェック
-    const existingById = await prisma.user.findUnique({
+    const existing = await prisma.user.findUnique({ where: { id: user.id } });
+
+    await prisma.user.upsert({
       where: { id: user.id },
+      create: {
+        ...user,
+      },
+      update: {
+        roles: user.roles ?? [],
+        permissions: user.permissions ?? [],
+      },
     });
-    
-    if (existingById) {
-      console.log(`  ✓ User "${user.displayName}" already exists (by ID)`);
-      continue;
+
+    if (existing) {
+      console.log(`  ✓ Updated roles/permissions for user: "${user.displayName}" (${user.id})`);
+    } else {
+      console.log(`  ✓ Created user: "${user.displayName}" (${user.id})`);
     }
-    
-    // usernameで既存チェック
-    const existingByUsername = await prisma.user.findUnique({
-      where: { username: user.username },
-    });
-    
-    if (existingByUsername) {
-      console.log(`  ⚠ Username "${user.username}" already taken, skipping`);
-      continue;
-    }
-    
-    // emailで既存チェック
-    const existingByEmail = await prisma.user.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (existingByEmail) {
-      console.log(`  ⚠ Email "${user.email}" already taken, skipping`);
-      continue;
-    }
-    
-    // 作成
-    await prisma.user.create({
-      data: user,
-    });
-    
-    console.log(`  ✓ Created user: "${user.displayName}" (${user.id})`);
   }
 }
 
