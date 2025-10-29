@@ -86,12 +86,6 @@ test.describe('MVP happy path', () => {
 
     const saveRequests: Array<{ pageNumber: number; vectorJson: unknown }> = [];
 
-    await page.route('**/api/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ user }),
-      });
     });
 
     await page.route('**/api/notebooks', async (route) => {
@@ -372,3 +366,4 @@ test.describe('MVP happy path', () => {
     }
   });
 });
+

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signInViaUI } from './utils/auth';
 
 declare global {
   interface Window {
@@ -49,12 +50,32 @@ test.describe('Chat experience', () => {
         };
     });
 
-    await page.route('**/api/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ user }),
-      });
+    // Mock NextAuth endpoints + socket token for backend-less E2E
+    await page.route('**/api/auth/**', async (route) => {
+      const url = route.request().url();
+      if (url.endsWith('/api/auth/socket-token')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'e2e-socket-token' }),
+          headers: {
+            'Set-Cookie': 'sv_access_token=e2e-socket-token; Path=/; Max-Age=900; SameSite=Lax',
+          },
+        });
+        return;
+      }
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true }),
+          headers: {
+            'Set-Cookie': 'next-auth.session-token=e2e-session; Path=/; HttpOnly; Max-Age=3600; SameSite=Lax',
+          },
+        });
+        return;
+      }
+      await route.continue();
     });
 
     await page.route('**/api/chat/rooms', async (route) => {
@@ -129,6 +150,7 @@ test.describe('Chat experience', () => {
   });
 
   test('allows viewing history, sending messages, and receiving socket pushes', async ({ page }) => {
+    await signInViaUI(page, { email: 'test@example.com', password: 'Password123' });
     await page.goto('/chat');
 
     await expect(page.getByRole('heading', { name: 'Rooms' })).toBeVisible();
