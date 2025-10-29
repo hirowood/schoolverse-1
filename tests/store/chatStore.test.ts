@@ -1,10 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { create } from 'zustand';
 import type { ChatMessage, RoomSummary } from '@/store/chatStore';
 import { mswServer } from '../setup/mswServer';
 
-type Listener = (payload: any) => void;
+type Listener = (payload: unknown) => void;
 
 const createMockSocket = () => {
   const listeners = new Map<string, Set<Listener>>();
@@ -44,13 +43,7 @@ const createMockSocket = () => {
   };
 };
 
-const defaultUser = {
-  id: 'user-1',
-  displayName: 'Alice Example',
-  avatarUrl: null,
-};
-
-async function setupChatStore(options: { user?: typeof defaultUser } = {}) {
+async function setupChatStore() {
   vi.resetModules();
 
   const { socket, helpers } = createMockSocket();

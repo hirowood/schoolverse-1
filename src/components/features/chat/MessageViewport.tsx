@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { SessionUser } from '@/types/session';
 
 const formatTimestamp = (isoString: string) => {
   const date = new Date(isoString);
@@ -16,7 +17,7 @@ export default function MessageViewport() {
   const cursor = useChatStore((state) => (activeRoomId ? state.messageCursors[activeRoomId] ?? null : null));
   const error = useChatStore((state) => (activeRoomId ? state.messageErrors[activeRoomId] : undefined));
   const loadOlder = useChatStore((state) => state.loadOlderMessages);
-  const { user: authUser } = useCurrentUser();
+  const { user: authUser }: { user: SessionUser | null } = useCurrentUser();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 

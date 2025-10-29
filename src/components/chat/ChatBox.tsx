@@ -15,6 +15,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { SessionUser } from '@/types/session';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { MessageSquare, X, Minimize2, Maximize2 } from 'lucide-react';
@@ -58,7 +59,7 @@ export default function ChatBox({
   const [isMinimized, setIsMinimized] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
 
-  const { user } = useCurrentUser();
+  const { user }: { user: SessionUser | null } = useCurrentUser();
   const connectSocket = useChatStore((state) => state.connectSocket);
   const setActiveRoom = useChatStore((state) => state.setActiveRoom);
   const loadInitialMessages = useChatStore((state) => state.loadInitialMessages);

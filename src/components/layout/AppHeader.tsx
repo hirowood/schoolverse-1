@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut, signIn } from 'next-auth/react';
+import type { SessionUser } from '@/types/session';
 // replaced authStore with NextAuth
 // useAuthBootstrap removed
 
@@ -9,10 +10,11 @@ export default function AppHeader() {
   
   const router = useRouter();
   const { data: session, status } = useSession();
+  const user = session?.user as SessionUser | undefined;
 
   const handleLogout = async () => { await signOut({ redirect: false }); router.push('/login'); };
 
-  const displayName = (session?.user as any)?.displayName || session?.user?.name || session?.user?.email || 'ゲスト';
+  const displayName = user?.displayName || user?.name || user?.email || 'ゲスト';
 
   return (
     <header className="border-b bg-white">

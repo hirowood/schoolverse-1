@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { SessionUser } from '@/types/session';
 
 export default function MessageComposer() {
   const [text, setText] = useState('');
@@ -10,7 +11,7 @@ export default function MessageComposer() {
   const sendMessage = useChatStore((state) => state.sendMessage);
   const notifyTyping = useChatStore((state) => state.notifyTyping);
   const error = useChatStore((state) => (activeRoomId ? state.messageErrors[activeRoomId] : undefined));
-  const { user: authUser } = useCurrentUser();
+  const { user: authUser }: { user: SessionUser | null } = useCurrentUser();
 
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
