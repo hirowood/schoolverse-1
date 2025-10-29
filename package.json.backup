@@ -21,18 +21,13 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "prisma db seed",
-    "db:reset": "tsx scripts/reset-db.ts",
-    "db:setup": "tsx scripts/setup-dev-env.ts",
-    "db:check-user": "tsx scripts/check-current-user.ts",
-    "db:list-users": "tsx scripts/list-users.ts",
     "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
     "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
     "docker:prod": "docker compose -f docker-compose.prod.yml up --build -d",
     "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
-    "rt:dev": "tsx --env-file=.env.local server/index.ts",
-    "rt:start": "tsx --env-file=.env.local server/index.ts",
-    "rt:mediasoup": "tsx --env-file=.env.local server/rtc/mediasoupServer.ts",
+    "rt:dev": "tsx server/index.ts",
+    "rt:start": "tsx server/index.ts",
+    "rt:mediasoup": "tsx server/rtc/mediasoupServer.ts",
     "pretest": "npm run prisma:generate",
     "test": "vitest",
     "test:unit": "vitest run",
@@ -87,8 +82,5 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.46.2",
     "vitest": "^3.2.4"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   }
 }

@@ -1,18 +1,42 @@
 // Simple Socket.io realtime server for presence + position updates (TypeScript)
 // Usage: tsx server/index.ts
-// Env: RT_PORT (default 3001), CORS_ORIGIN (default *)
+// Env: RT_PORT (default 3001), CORS_ORIGIN (default *), JWT_SECRET (required)
+
+// 🔧 環境変数の読み込み (.env.local)
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// .env.local を読み込む
+config({ path: resolve(process.cwd(), '.env.local') });
+// フォールバック: .env を読み込む
+config({ path: resolve(process.cwd(), '.env') });
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
 const PORT = Number(process.env.RT_PORT || 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
+
+// 🔧 デバッグ: 環境変数の確認
+console.log('[Server] Environment check:');
+console.log('  - JWT_SECRET:', JWT_SECRET ? '✅ Set' : '❌ Not set');
+console.log('  - PORT:', PORT);
+console.log('  - CORS_ORIGIN:', CORS_ORIGIN);
+
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET or ACCESS_TOKEN_SECRET is required for Socket.io authentication');
+  console.error('   Please check your .env.local file');
+  process.exit(1);
+}
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
     origin: CORS_ORIGIN,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
   transports: ['websocket'],
 });
@@ -40,13 +64,63 @@ function toStateArray(excludeUserId?: string) {
   return arr;
 }
 
+// ============================================
+// 🔧 認証ミドルウェア
+// ============================================
+
+interface JWTPayload {
+  userId: string;
+  email: string;
+  username: string;
+}
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  if (!token) {
+    console.warn('[Socket.io] Connection rejected: No token provided');
+    return next(new Error('AUTH_TOKEN_MISSING'));
+  }
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET!) as JWTPayload;
+    
+    // ソケットデータに認証情報を保存
+    socket.data.userId = decoded.userId;
+    socket.data.email = decoded.email;
+    socket.data.username = decoded.username;
+    
+    console.log(`[Socket.io] User authenticated: ${decoded.userId} (${decoded.username})`);
+    next();
+  } catch (error) {
+    console.error('[Socket.io] Auth error:', error instanceof Error ? error.message : 'Unknown error');
+    return next(new Error('AUTH_TOKEN_INVALID'));
+  }
+});
+
+// ============================================
+// Socket.io イベントハンドラー
+// ============================================
+
 io.on('connection', (socket) => {
-  let currentUserId: string | null = null;
+  // 認証済みのuserIdを取得
+  const authenticatedUserId = socket.data.userId as string;
+  let currentUserId: string | null = authenticatedUserId;
+
+  console.log(`[Socket.io] Client connected: ${socket.id} (User: ${authenticatedUserId})`);
 
   socket.on('presence:join', (payload: { userId?: string; displayName?: string } | undefined) => {
     if (!payload || !payload.userId) return;
+    
+    // 🔧 セキュリティ: 認証されたuserIdと一致するか確認
+    if (payload.userId !== authenticatedUserId) {
+      console.warn(`[Socket.io] User ${authenticatedUserId} tried to join as ${payload.userId}`);
+      socket.emit('error', { code: 'AUTH_USER_MISMATCH', message: 'User ID mismatch' });
+      return;
+    }
+    
     currentUserId = String(payload.userId);
-    const displayName = typeof payload.displayName === 'string' ? payload.displayName : undefined;
+    const displayName = typeof payload.displayName === 'string' ? payload.displayName : socket.data.username;
     const prev = players.get(currentUserId);
     const x = prev?.x ?? 800;
     const y = prev?.y ?? 600;
@@ -70,7 +144,11 @@ io.on('connection', (socket) => {
   socket.on('chat:join', (payload: { roomId?: string; userId?: string } | undefined) => {
     if (!payload?.roomId || !payload?.userId) return;
     const { roomId, userId } = payload;
-    if (currentUserId !== null && currentUserId !== userId) {
+    
+    // 🔧 セキュリティ: 認証されたuserIdと一致するか確認
+    if (userId !== authenticatedUserId) {
+      console.warn(`[Socket.io] User ${authenticatedUserId} tried to join chat as ${userId}`);
+      socket.emit('error', { code: 'AUTH_USER_MISMATCH', message: 'User ID mismatch' });
       return;
     }
 
@@ -85,6 +163,7 @@ io.on('connection', (socket) => {
     roomMembers.get(userId)!.add(socket.id);
 
     socket.emit('chat:room:joined', { roomId });
+    console.log(`[Socket.io] User ${userId} joined chat room: ${roomId}`);
   });
 
   socket.on('chat:leave', (payload: { roomId?: string; userId?: string } | undefined) => {
@@ -107,6 +186,10 @@ io.on('connection', (socket) => {
     (payload: { roomId?: string; userId?: string; state?: 'started' | 'stopped' } | undefined) => {
       if (!payload?.roomId || !payload?.userId || !payload?.state) return;
       const { roomId, userId, state } = payload;
+      
+      // セキュリティチェック
+      if (userId !== authenticatedUserId) return;
+      
       const roomMembers = chatRooms.get(roomId);
       if (!roomMembers?.get(userId)?.has(socket.id)) return;
       socket.to(roomId).emit('chat:typing', { roomId, userId, state });
@@ -118,6 +201,10 @@ io.on('connection', (socket) => {
     (payload: { roomId?: string; userId?: string; message?: unknown } | undefined) => {
       if (!payload?.roomId || !payload?.userId || !payload?.message) return;
       const { roomId, userId, message } = payload;
+      
+      // セキュリティチェック
+      if (userId !== authenticatedUserId) return;
+      
       const roomMembers = chatRooms.get(roomId);
       if (!roomMembers?.get(userId)?.has(socket.id)) return;
       // TODO: integrate with REST/service layer once persistence pipeline is wired.
@@ -130,6 +217,10 @@ io.on('connection', (socket) => {
     (payload: { roomId?: string; userId?: string; messageId?: string; status?: string } | undefined) => {
       if (!payload?.roomId || !payload?.userId || !payload?.messageId || !payload?.status) return;
       const { roomId, userId, messageId, status } = payload;
+      
+      // セキュリティチェック
+      if (userId !== authenticatedUserId) return;
+      
       const roomMembers = chatRooms.get(roomId);
       if (!roomMembers?.get(userId)?.has(socket.id)) return;
       socket.to(roomId).emit('chat:receipt:update', { roomId, messageId, userId, status });
@@ -139,9 +230,14 @@ io.on('connection', (socket) => {
   socket.on('voice:join', (payload: { roomId?: string; userId?: string; displayName?: string | null } | undefined) => {
     if (!payload?.roomId || !payload?.userId) return;
     const { roomId, userId, displayName } = payload;
-    if (currentUserId !== null && currentUserId !== userId) {
+    
+    // セキュリティチェック
+    if (userId !== authenticatedUserId) {
+      console.warn(`[Socket.io] User ${authenticatedUserId} tried to join voice as ${userId}`);
+      socket.emit('error', { code: 'AUTH_USER_MISMATCH', message: 'User ID mismatch' });
       return;
     }
+    
     const roomMembers = ensureVoiceRoom(roomId);
     if (!roomMembers.has(userId)) {
       roomMembers.set(userId, new Set());
@@ -158,6 +254,10 @@ io.on('connection', (socket) => {
 
   socket.on('voice:leave', (payload: { roomId?: string; userId?: string } | undefined) => {
     if (!payload?.roomId || !payload?.userId) return;
+    
+    // セキュリティチェック
+    if (payload.userId !== authenticatedUserId) return;
+    
     leaveVoiceRoom(payload.roomId, payload.userId, socket.id);
   });
 
@@ -230,12 +330,14 @@ io.on('connection', (socket) => {
         voiceRooms.delete(roomId);
       }
     }
+    
+    console.log(`[Socket.io] Client disconnected: ${socket.id} (User: ${authenticatedUserId})`);
   });
 });
 
 httpServer.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Realtime server listening on :${PORT} (CORS: ${CORS_ORIGIN})`);
+  console.log(`✅ Realtime server listening on :${PORT} (CORS: ${CORS_ORIGIN})`);
+  console.log(`🔐 JWT authentication: ${JWT_SECRET ? 'Enabled' : 'Disabled'}`);
 });
 
 export {};
@@ -267,4 +369,3 @@ function isVoiceMember(roomId: string, userId: string, socketId: string): boolea
   const sockets = roomMembers.get(userId);
   return sockets?.has(socketId) ?? false;
 }
-

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import useKeyboard from '@/hooks/useKeyboard';
 import { useAuthStore } from '@/store/authStore';
 import { getSocket } from '@/lib/socket/socketClient';
+import ChatBox from '@/components/chat/ChatBox';
 
 const MAP_W = 1600;
 const MAP_H = 1200;
@@ -94,7 +95,7 @@ export default function VirtualSpace() {
   );
 
   return (
-    <div className="h-[600px] w-full">
+    <div className="h-[600px] w-full relative">
       <Canvas
         shadows
         gl={{ antialias: true }}
@@ -116,6 +117,9 @@ export default function VirtualSpace() {
           <PeerAvatar key={peer.id} x={peer.x} y={peer.y} displayName={peer.displayName} />
         ))}
       </Canvas>
+
+      {/* チャットボックス */}
+      <ChatBox roomId="classroom" roomName="教室チャット" />
     </div>
   );
 }

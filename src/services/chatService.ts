@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
+import { AppError } from '@/lib/utils/errors';
+import { ERROR_CODES } from '@/constants/errors';
 
 type RoomSummary = {
   id: string;
@@ -42,7 +44,7 @@ class ChatService {
       where: { userId_roomId: { userId, roomId } },
     });
     if (!membership) {
-      throw new Error('ROOM_FORBIDDEN');
+      throw new AppError(ERROR_CODES.ROOM.FORBIDDEN, { roomId, userId });
     }
   }
 

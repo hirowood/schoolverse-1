@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginSchema } from '@/lib/utils/validators';
 import { useAuthStore } from '@/store/authStore';
+import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -73,7 +74,8 @@ export default function LoginPage() {
             required
           />
         </div>
-        {(localError || error) && <p className="text-sm text-red-600">{localError ?? error}</p>}
+        {/* 🔧 修正: ErrorDisplayコンポーネントを使用 */}
+        <ErrorDisplay error={localError ?? error} />
         <button
           disabled={isLoading}
           type="submit"

@@ -6,7 +6,7 @@ type AuthState = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  error: string | null;
+  error: string | null; // 🔧 必ず文字列型
 };
 
 type AuthActions = {
@@ -68,18 +68,44 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 
 /**
  * APIエラーレスポンスからメッセージを抽出
+ * @param data - エラーレスポンスデータ
+ * @returns 文字列のエラーメッセージ（必ず文字列を返す）
  */
 function extractErrorMessage(data: unknown): string {
-  if (typeof data === 'object' && data !== null) {
+  // データがnullまたはundefinedの場合
+  if (data == null) {
+    return 'UNKNOWN_ERROR';
+  }
+  
+  // データが文字列の場合
+  if (typeof data === 'string') {
+    return data;
+  }
+  
+  // データがオブジェクトの場合
+  if (typeof data === 'object') {
     const errorData = data as Partial<ErrorResponse>;
-    if (errorData.error?.message) {
+    
+    // error.message が存在する場合
+    if (errorData.error?.message && typeof errorData.error.message === 'string') {
       return errorData.error.message;
     }
-    if (errorData.error?.code) {
+    
+    // error.code が存在する場合
+    if (errorData.error?.code && typeof errorData.error.code === 'string') {
       return errorData.error.code;
     }
+    
+    // オブジェクト全体をJSON文字列化して返す（デバッグ用）
+    try {
+      return `エラーが発生しました: ${JSON.stringify(data)}`;
+    } catch {
+      return 'ERROR_PARSE_FAILED';
+    }
   }
-  return 'UNKNOWN_ERROR';
+  
+  // その他の型の場合
+  return String(data) || 'UNKNOWN_ERROR';
 }
 
 // ============================================
@@ -108,6 +134,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       if (!response.ok) {
         const data = await parseJsonResponse<ErrorResponse>(response);
         const message = extractErrorMessage(data);
+        // 🔧 重要: errorは必ず文字列として保存
         set({ error: message, isLoading: false, isAuthenticated: false });
         throw new Error(message);
       }
@@ -121,12 +148,19 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         error: null 
       });
     } catch (error) {
+      // 🔧 重要: errorは必ず文字列として保存
+      let errorMessage = 'LOGIN_FAILED';
+      
       if (error instanceof Error) {
-        set({ error: error.message, isLoading: false });
-      } else {
-        set({ error: 'LOGIN_FAILED', isLoading: false });
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        errorMessage = extractErrorMessage(error);
       }
-      throw error;
+      
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
     }
   },
   
@@ -166,12 +200,19 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         error: null 
       });
     } catch (error) {
+      // 🔧 重要: errorは必ず文字列として保存
+      let errorMessage = 'SIGNUP_FAILED';
+      
       if (error instanceof Error) {
-        set({ error: error.message, isLoading: false });
-      } else {
-        set({ error: 'SIGNUP_FAILED', isLoading: false });
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        errorMessage = extractErrorMessage(error);
       }
-      throw error;
+      
+      set({ error: errorMessage, isLoading: false });
+      throw new Error(errorMessage);
     }
   },
   

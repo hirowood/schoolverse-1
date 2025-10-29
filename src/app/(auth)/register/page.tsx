@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
+import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
 // ============================================
 // バリデーションスキーマ（バックエンドと統一）
@@ -162,11 +163,8 @@ export default function RegisterPage() {
           </p>
         </div>
         
-        {(localError || error) && (
-          <div className="rounded bg-red-50 p-3 text-sm text-red-600">
-            {localError ?? error}
-          </div>
-        )}
+        {/* 🔧 修正: ErrorDisplayコンポーネントを使用 */}
+        <ErrorDisplay error={localError ?? error} />
         
         <button
           disabled={isLoading}
