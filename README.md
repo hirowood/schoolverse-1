@@ -177,19 +177,14 @@ Phase 2 以降で導入する mediasoup SFU / AI ワーカー等は `docs/DOCKER
 
 ---
 
-## 📡 API (Phase 1)
+## 認証 / API 概要（NextAuth）
 
 ```
-POST /api/auth/login         # ログイン
-POST /api/auth/register      # 新規登録
-POST /api/auth/logout        # ログアウト
-POST /api/auth/refresh       # トークン更新
-GET  /api/auth/me           # ユーザー情報取得
-
-GET  /api/messages          # チャット一覧
-POST /api/messages          # チャット投稿
-GET  /api/socket            # Socket クライアント設定
+POST /api/auth/[...nextauth]    # Auth.js (NextAuth) のエンドポイント
+GET  /api/auth/socket-token     # RTサーバー用JWTを発行（15分TTL, sv_access_token Cookie）
 ```
+
+旧エンドポイント（/api/auth/login|logout|refresh）は廃止しました。UIからは next-auth/react の `signIn` / `signOut` を利用してください。
 
 Phase 2 (ビデオ会議), Phase 3 (課題), Phase 4 (カリキュラム), Phase 3.5/4.5 (ノート/OCR/AI) の API は順次追加されます。最新仕様は `docs/requirements.md` を参照してください。
 
