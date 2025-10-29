@@ -1,4 +1,7 @@
 /**
+ * DEPRECATED: This endpoint is superseded by Auth.js (NextAuth) `signOut`.
+ * Prefer next-auth/react `signOut` instead of calling this route.
+ *
  * @file route.ts
  * @description ログアウトAPIエンドポイント
  * @route POST /api/auth/logout

@@ -1,4 +1,7 @@
 /**
+ * DEPRECATED: This endpoint is superseded by Auth.js (NextAuth) Credentials.
+ * Migrate clients to `POST /api/auth/[...nextauth]` via next-auth/react `signIn`.
+ *
  * @file route.ts
  * @description ログインAPIエンドポイント
  * @route POST /api/auth/login

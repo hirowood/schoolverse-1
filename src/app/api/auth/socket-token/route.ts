@@ -19,15 +19,15 @@ export async function GET(req: Request) {
     username: (token as any).username,
   };
 
-  const svToken = jwt.sign(payload, secret, { expiresIn: "1h" });
+  // Shorter token lifetime for RT connections to reduce risk surface
+  const svToken = jwt.sign(payload, secret, { expiresIn: "15m" });
 
   const res = NextResponse.json({ token: svToken });
   // Optional: also set a client-readable cookie so existing socket code can pick it up
   res.headers.append(
     "Set-Cookie",
-    `sv_access_token=${svToken}; Path=/; Max-Age=3600; SameSite=Lax`
+    `sv_access_token=${svToken}; Path=/; Max-Age=900; SameSite=Lax`
   );
 
   return res;
 }
-

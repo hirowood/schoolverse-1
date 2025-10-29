@@ -1,4 +1,7 @@
 /**
+ * DEPRECATED: This endpoint is superseded by Auth.js (NextAuth) JWT session strategy.
+ * Clients should not call refresh; rely on NextAuth session management.
+ *
  * @file route.ts
  * @description トークンリフレッシュAPIエンドポイント
  * @route POST /api/auth/refresh
