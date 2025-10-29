@@ -195,6 +195,27 @@ NEXT_PUBLIC_E2E=1 npm run test:e2e
 
 テストでは `tests/playwright/utils/auth.ts` の `signInViaUI` を利用してUI経由でログインし、`/api/auth/socket-token` でRT用トークンCookie（sv_access_token）を発行します。
 
+#### CI（GitHub Actions）例: E2E 実行ジョブ
+
+```
+name: E2E
+on: [push, pull_request]
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: Run E2E with middleware bypass
+        env:
+          NEXT_PUBLIC_E2E: '1'
+        run: npm run test:e2e
+```
+
 Phase 2 (ビデオ会議), Phase 3 (課題), Phase 4 (カリキュラム), Phase 3.5/4.5 (ノート/OCR/AI) の API は順次追加されます。最新仕様は `docs/requirements.md` を参照してください。
 
 ---
