@@ -54,24 +54,18 @@ async function setupChatStore(options: { user?: typeof defaultUser } = {}) {
   vi.resetModules();
 
   const { socket, helpers } = createMockSocket();
-  const authStore = create(() => ({
-    user: options.user ?? defaultUser,
-  }));
 
   vi.doMock('@/lib/socket/socketClient', () => ({
     getSocket: () => socket,
   }));
 
-  vi.doMock('@/store/authStore', () => ({
-    useAuthStore: authStore,
-  }));
 
   const { useChatStore } = await import('@/store/chatStore');
 
   return {
     useChatStore,
     socketHelpers: helpers,
-    authStore,
+    // No authStore dependency anymore; chatStore accepts currentUser via params
   };
 }
 
