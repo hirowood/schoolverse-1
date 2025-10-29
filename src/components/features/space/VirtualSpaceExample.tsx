@@ -156,7 +156,7 @@ export function VirtualSpaceExample() {
         ctx.fillStyle = '#000';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(user.displayName || user.username, localPosition.x, localPosition.y - 25);
+        ctx.fillText(String(user.displayName ?? user.username ?? 'You'), localPosition.x, localPosition.y - 25);
       }
 
       // 他のプレイヤー（赤）
@@ -170,7 +170,7 @@ export function VirtualSpaceExample() {
         ctx.fillStyle = '#000';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(player.displayName || player.userId.slice(0, 8), player.x, player.y - 25);
+        ctx.fillText(String(player.displayName ?? player.userId.slice(0, 8)), player.x, player.y - 25);
       }
     };
 
