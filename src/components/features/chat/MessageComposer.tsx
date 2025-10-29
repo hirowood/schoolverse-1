@@ -2,7 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/store/chatStore';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function MessageComposer() {
   const [text, setText] = useState('');
@@ -10,7 +10,7 @@ export default function MessageComposer() {
   const sendMessage = useChatStore((state) => state.sendMessage);
   const notifyTyping = useChatStore((state) => state.notifyTyping);
   const error = useChatStore((state) => (activeRoomId ? state.messageErrors[activeRoomId] : undefined));
-  const authUser = useAuthStore((state) => state.user);
+  const { user: authUser } = useCurrentUser();
 
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -22,10 +22,10 @@ export default function MessageComposer() {
 
   const beginTyping = () => {
     if (!activeRoomId || !authUser) return;
-    notifyTyping(activeRoomId, 'started');
+    notifyTyping(activeRoomId, 'started', authUser?.id);
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => {
-      notifyTyping(activeRoomId, 'stopped');
+      notifyTyping(activeRoomId, 'stopped', authUser?.id);
     }, 3000);
   };
 
@@ -44,11 +44,11 @@ export default function MessageComposer() {
     const content = text.trim();
     if (!content) return;
 
-    sendMessage(activeRoomId, { content })
+    sendMessage(activeRoomId, { content }, authUser ?? undefined)
       .finally(() => {
         setText('');
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        notifyTyping(activeRoomId, 'stopped');
+        notifyTyping(activeRoomId, 'stopped', authUser?.id);
       })
       .catch(() => {
         // error state handled inside store; optional local handling here

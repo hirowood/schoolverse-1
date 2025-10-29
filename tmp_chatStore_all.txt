@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { getSocket } from '@/lib/socket/socketClient';
-// authStore removed: methods now accept userId/currentUser from callers (NextAuth)
+import { useAuthStore } from '@/store/authStore';
 
 export type ChatMessage = {
   id: string;
@@ -53,18 +53,14 @@ type ChatState = {
 type ChatActions = {
   connectSocket: () => void;
   loadRooms: () => Promise<void>;
-  setActiveRoom: (roomId: string | null, userId?: string | null) => void;
+  setActiveRoom: (roomId: string | null) => void;
   loadInitialMessages: (roomId: string) => Promise<void>;
   loadOlderMessages: (roomId: string) => Promise<void>;
-  sendMessage: (
-    roomId: string,
-    payload: { content: string; type?: 'TEXT' | 'SYSTEM' | 'NOTIFICATION'; recipientId?: string | null },
-    currentUser?: { id: string; displayName: string | null; avatarUrl: string | null }
-  ) => Promise<void>;
+  sendMessage: (roomId: string, payload: { content: string; type?: 'TEXT' | 'SYSTEM' | 'NOTIFICATION'; recipientId?: string | null }) => Promise<void>;
   upsertMessage: (roomId: string, message: ChatMessage) => void;
   handleTypingEvent: (roomId: string, userId: string, state: 'started' | 'stopped') => void;
   clearTyping: (roomId: string, userId: string) => void;
-  notifyTyping: (roomId: string, state: 'started' | 'stopped', userId?: string | null) => void;
+  notifyTyping: (roomId: string, state: 'started' | 'stopped') => void;
 };
 
 type ChatStore = ChatState & ChatActions;
@@ -147,17 +143,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  setActiveRoom: (roomId, userId) => {
+  setActiveRoom: (roomId) => {
     const socket = getSocket();
-    const authUserId = userId ?? null;
+    const authUser = useAuthStore.getState().user;
     set((prev) => {
-      if (authUserId && prev.activeRoomId && prev.activeRoomId !== roomId) {
-        socket.emit('chat:leave', { roomId: prev.activeRoomId, userId: authUserId });
+      if (authUser && prev.activeRoomId && prev.activeRoomId !== roomId) {
+        socket.emit('chat:leave', { roomId: prev.activeRoomId, userId: authUser.id });
       }
       return { activeRoomId: roomId };
     });
-    if (!roomId || !authUserId) return;
-    socket.emit('chat:join', { roomId, userId: authUserId });
+    if (!roomId || !authUser) return;
+    socket.emit('chat:join', { roomId, userId: authUser.id });
   },
 
   loadInitialMessages: async (roomId) => {
@@ -233,8 +229,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId, payload, currentUser) => {
-    const authUser = currentUser ?? null;
+  sendMessage: async (roomId, payload) => {
+    const authUser = useAuthStore.getState().user;
     const optimisticId = `tmp-${Date.now()}`;
     const optimisticMessage: ChatMessage = {
       id: optimisticId,
@@ -372,9 +368,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
-  notifyTyping: (roomId, state, userId) => {
-    if (!userId) return;
+  notifyTyping: (roomId, state) => {
+    const authUser = useAuthStore.getState().user;
+    if (!authUser) return;
     const socket = getSocket();
-    socket.emit('chat:typing', { roomId, userId, state });
+    socket.emit('chat:typing', { roomId, userId: authUser.id, state });
   },
 }));
+

@@ -5,7 +5,7 @@ import { createRTCManager } from '@/lib/rtc';
 import type { RTCManager } from '@/lib/rtc/rtcManager';
 import { MediasoupClient } from '@/lib/rtc/mediasoupClient';
 import { getSocket } from '@/lib/socket/socketClient';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { VoiceUserId } from '@/types/rtc';
 
 type VoicePanelProps = {
@@ -18,7 +18,7 @@ type Participant = {
 };
 
 export default function VoicePanel({ roomId }: VoicePanelProps) {
-  const authUser = useAuthStore((state) => state.user);
+  const { user: authUser } = useCurrentUser();
   const socket = useMemo(() => getSocket(), []);
   const [rtcManager, setRtcManager] = useState<RTCManager | null>(null);
   const [sfuClient, setSfuClient] = useState<MediasoupClient | null>(null);

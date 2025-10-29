@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react';
 import { useChatStore } from '@/store/chatStore';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function TypingIndicator() {
   const activeRoomId = useChatStore((state) => state.activeRoomId);
   const typingState = useChatStore((state) => (activeRoomId ? state.typing[activeRoomId] : undefined));
   const rooms = useChatStore((state) => state.rooms);
-  const authUser = useAuthStore((state) => state.user);
+  const { user: authUser } = useCurrentUser();
 
   const typingUsers = useMemo(() => {
     if (!typingState) return [];
