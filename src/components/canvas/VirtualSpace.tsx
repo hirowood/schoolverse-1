@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import useKeyboard from '@/hooks/useKeyboard';
 import { useSession } from 'next-auth/react';
+import type { SessionUser } from '@/types/session';
 import { getSocket } from '@/lib/socket/socketClient';
 import ChatBox from '@/components/chat/ChatBox';
 
@@ -27,7 +28,8 @@ type PeerState = { x: number; y: number; displayName?: string };
 
 export default function VirtualSpace() {
   const keys = useKeyboard();
-  const { data: session } = useSession(); const user = (session?.user as any) ?? null;
+  const { data: session } = useSession();
+  const user = (session?.user as SessionUser | undefined) ?? null;
   const socket = useMemo(() => getSocket(), []);
   const peersRef = useRef<Map<string, PeerState>>(new Map());
   const [peersVersion, setPeersVersion] = useState(0);

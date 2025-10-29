@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSocket, useSocketEvent } from '@/hooks/useSocket';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { SessionUser } from '@/types/session';
 import type { PositionUpdateBroadcastPayload, PresenceJoinedPayload, PresenceLeftPayload } from '@/types/socket.types';
 
 interface Player {
@@ -25,7 +26,7 @@ interface Player {
 }
 
 export function VirtualSpaceExample() {
-  const { user } = useCurrentUser();
+  const { user }: { user: SessionUser | null } = useCurrentUser();
   const { socket, isConnected, connectionInfo } = useSocket();
   
   const [players, setPlayers] = useState<Map<string, Player>>(new Map());

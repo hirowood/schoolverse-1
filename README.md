@@ -214,6 +214,25 @@ jobs:
         env:
           NEXT_PUBLIC_E2E: '1'
         run: npm run test:e2e
+
+#### CI（GitHub Actions）例: 型チェック / Lint
+
+```
+name: Quality
+on: [push, pull_request]
+jobs:
+  typecheck_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm run test:unit
+```
 ```
 
 Phase 2 (ビデオ会議), Phase 3 (課題), Phase 4 (カリキュラム), Phase 3.5/4.5 (ノート/OCR/AI) の API は順次追加されます。最新仕様は `docs/requirements.md` を参照してください。
