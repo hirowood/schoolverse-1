@@ -25,6 +25,8 @@ export const authConfig: NextAuthConfig = {
             name: user.displayName ?? user.username,
             username: user.username,
             displayName: user.displayName ?? null,
+            roles: (user as any).roles ?? null,
+            permissions: (user as any).permissions ?? null,
           } as any;
         } catch {
           return null;
@@ -38,6 +40,8 @@ export const authConfig: NextAuthConfig = {
         token.id = (user as any).id;
         token.username = (user as any).username;
         token.displayName = (user as any).displayName ?? null;
+        token.roles = (user as any).roles ?? null;
+        token.permissions = (user as any).permissions ?? null;
       }
       return token;
     },
@@ -46,6 +50,8 @@ export const authConfig: NextAuthConfig = {
         (session.user as any).id = token.id as string | undefined;
         (session.user as any).username = token.username as string | undefined;
         (session.user as any).displayName = token.displayName as string | null | undefined;
+        (session.user as any).roles = (token as any).roles ?? null;
+        (session.user as any).permissions = (token as any).permissions ?? null;
       }
       return session;
     },
@@ -55,4 +61,3 @@ export const authConfig: NextAuthConfig = {
 };
 
 export default authConfig;
-
