@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signInViaUI } from './utils/auth';
 
 declare global {
   interface Window {
@@ -52,6 +53,37 @@ test.describe('MVP happy path', () => {
   });
 
   test('user edits notes, chats, and joins virtual space', async ({ page }) => {
+    // Mock NextAuth credential flow and socket-token for E2E without backend
+    await page.route('**/api/auth/**', async (route) => {
+      const url = route.request().url();
+      // Let socket-token be handled separately
+      if (url.endsWith('/api/auth/socket-token')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'e2e-socket-token' }),
+          headers: {
+            // 15m
+            'Set-Cookie': 'sv_access_token=e2e-socket-token; Path=/; Max-Age=900; SameSite=Lax',
+          },
+        });
+        return;
+      }
+      // Simulate NextAuth sign-in success and set a session cookie
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true }),
+          headers: {
+            'Set-Cookie': 'next-auth.session-token=e2e-session; Path=/; HttpOnly; Max-Age=3600; SameSite=Lax',
+          },
+        });
+        return;
+      }
+      await route.continue();
+    });
+
     const saveRequests: Array<{ pageNumber: number; vectorJson: unknown }> = [];
 
     await page.route('**/api/auth/me', async (route) => {
@@ -181,6 +213,9 @@ test.describe('MVP happy path', () => {
         }),
       });
     });
+
+    // Perform UI sign-in (mocked via route above)
+    await signInViaUI(page, { email: 'test@example.com', password: 'Password123' });
 
     let usingNotesFallback = false;
     const notesResponse = await page.goto('/notes').catch(() => null);
