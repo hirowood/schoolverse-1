@@ -36,7 +36,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { socketManager } from '@/lib/socket/SocketManager';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { SocketConnectionInfo } from '@/types/socket.types';
 
 /**
@@ -69,8 +69,8 @@ export interface UseSocketReturn {
 export function useSocket(options: { autoConnect?: boolean } = {}): UseSocketReturn {
   const { autoConnect = true } = options;
   
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { user, status } = useCurrentUser();
+  const isAuthenticated = status === 'authenticated';
   
   const [isConnected, setIsConnected] = useState(false);
   const [connectionInfo, setConnectionInfo] = useState<SocketConnectionInfo>(
