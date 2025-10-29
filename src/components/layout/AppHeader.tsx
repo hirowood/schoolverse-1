@@ -1,25 +1,18 @@
 "use client";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { useAuthBootstrap } from '@/hooks/useAuth';
+import { useSession, signOut, signIn } from 'next-auth/react';
+// replaced authStore with NextAuth
+// useAuthBootstrap removed
 
 export default function AppHeader() {
-  useAuthBootstrap();
+  
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore((state) => ({
-    user: state.user,
-    isAuthenticated: state.isAuthenticated,
-    isLoading: state.isLoading,
-    logout: state.logout,
-  }));
+  const { data: session, status } = useSession();
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
+  const handleLogout = async () => { await signOut({ redirect: false }); router.push('/login'); };
 
-  const displayName = user?.displayName || user?.username || user?.email || 'ゲスト';
+  const displayName = (session?.user as any)?.displayName || session?.user?.name || session?.user?.email || 'ゲスト';
 
   return (
     <header className="border-b bg-white">
@@ -37,12 +30,12 @@ export default function AppHeader() {
           <Link className="hover:underline" href="/notes">
             Notes
           </Link>
-          {isAuthenticated ? (
+          {status === 'authenticated' ? (
             <>
               <span className="hidden text-gray-600 sm:inline">{displayName}</span>
               <button
                 onClick={handleLogout}
-                disabled={isLoading}
+                disabled={status === 'loading'}
                 className="rounded bg-gray-200 px-3 py-1"
               >
                 ログアウト
@@ -63,3 +56,4 @@ export default function AppHeader() {
     </header>
   );
 }
+

@@ -1,8 +1,8 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { z } from 'zod';
-import { useAuthStore } from '@/store/authStore';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
 // ============================================
@@ -48,17 +48,12 @@ export default function RegisterPage() {
   });
   const [localError, setLocalError] = useState<string | null>(null);
   
-  const { signup, isLoading, error, clearError } = useAuthStore((state) => ({
-    signup: state.signup,
-    isLoading: state.isLoading,
-    error: state.error,
-    clearError: state.clearError,
-  }));
+  const [isSubmitting, setIsSubmitting] = useState(false); const [error, setError] = useState<string|null>(null);
 
   const handleChange =
     (key: keyof typeof form) =>
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (error) clearError();
+      if (error) setError(null);
       if (localError) setLocalError(null);
       setForm((prev) => ({ ...prev, [key]: event.target.value }));
     };
@@ -79,15 +74,31 @@ export default function RegisterPage() {
       return;
     }
 
-    try {
-      await signup(parsed.data);
+        try {
+      setIsSubmitting(true);
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed.data),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setLocalError(data?.message || '登録に失敗しました');
+        setIsSubmitting(false);
+        return;
+      }
+      const si = await signIn('credentials', { email: parsed.data.email, password: parsed.data.password, redirect: false });
+      if (si?.error) {
+        setLocalError('自動ログインに失敗しました');
+        setIsSubmitting(false);
+        return;
+      }
+      await fetch('/api/auth/socket-token', { method: 'GET' });
       router.push('/');
     } catch (err) {
-      if (err instanceof Error) {
-        setLocalError(err.message);
-      } else {
-        setLocalError('登録に失敗しました。');
-      }
+      setLocalError(err instanceof Error ? err.message : '登録に失敗しました');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,16 +175,18 @@ export default function RegisterPage() {
         </div>
         
         {/* 🔧 修正: ErrorDisplayコンポーネントを使用 */}
-        <ErrorDisplay error={localError ?? error} />
+        <ErrorDisplay error={localError ?? null} />
         
         <button
-          disabled={isLoading}
+          disabled={isSubmitting}
           type="submit"
           className="w-full rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
         >
-          {isLoading ? '処理中…' : '登録'}
+          {isSubmitting ? '処理中…' : '登録'}
         </button>
       </form>
     </div>
   );
 }
+
+
